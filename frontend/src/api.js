@@ -1,4 +1,4 @@
-export const API_BASE_URL = "http://127.0.0.1:8000";
+﻿export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
 export function getAuthToken() {
   return localStorage.getItem("aloko_access_token");
@@ -957,7 +957,7 @@ export async function generateBusinessReport(
   );
 }
 // ============================================================
-// UNIVERSITY ADMIN â€” PORTAL INTEGRATION
+// UNIVERSITY ADMIN Ã¢â‚¬â€ PORTAL INTEGRATION
 // ============================================================
 
 export async function getUniversityPortalConfigs(universityId) {
@@ -1388,7 +1388,7 @@ export async function reviewAIMarkingResult(
 
 
 // ============================================================
-// UNIVERSITY SCHOOL PORTAL â€” LINK / CONFIGURATION
+// UNIVERSITY SCHOOL PORTAL Ã¢â‚¬â€ LINK / CONFIGURATION
 // ============================================================
 
 export async function createSchoolPortal(payload) {
@@ -1495,7 +1495,7 @@ export async function testSchoolPortal(
 
 
 // ============================================================
-// UNIVERSITY PORTAL â€” SYNC
+// UNIVERSITY PORTAL Ã¢â‚¬â€ SYNC
 // ============================================================
 
 export async function createPortalSync(payload) {
@@ -2189,6 +2189,7 @@ export async function importLecturerStudents(courseOfferingId, file, updateExist
 
   return handleResponse(response, "Failed to import students");
 }
+
 
 
 
