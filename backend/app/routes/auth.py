@@ -160,7 +160,7 @@ def signup(
     new_user = User(
         email=email,
         password_hash=password_hash,
-        email_verified=False,
+        email_verified=True,
         auth_provider="email",
     )
 
@@ -211,25 +211,12 @@ def signup(
 
         linked_invitations += 1
 
-    # ------------------------------------------------------
-    # EMAIL VERIFICATION
-    # ------------------------------------------------------
-    code = set_verification_code(new_user)
-
     db.commit()
     db.refresh(new_user)
 
-    asyncio.run(
-        send_verification_email(
-            recipient=new_user.email,
-            code=code,
-            expires_minutes=VERIFICATION_CODE_EXPIRE_MINUTES,
-        )
-    )
-
     return {
-        "message": "Account created. Please verify your email.",
-        "verification_required": True,
+        "message": "Account created successfully.",
+        "verification_required": False,
         "user_id": new_user.id,
         "email": new_user.email,
         "student_invitation_linked": linked_invitations > 0,
@@ -572,18 +559,12 @@ def login(
             detail="Invalid email or password.",
         )
 
-    # ------------------------------------------------------
-    # EMAIL VERIFICATION
-    # ------------------------------------------------------
-
+    # Email verification is temporarily optional.
+    # Successful password authentication is sufficient for login.
     if not existing_user.email_verified:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "Email not verified. "
-                "Please verify your email before signing in."
-            ),
-        )
+        existing_user.email_verified = True
+        db.commit()
+        db.refresh(existing_user)
 
     token = create_access_token(
         existing_user.id,
