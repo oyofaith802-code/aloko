@@ -1,4 +1,4 @@
-import os
+﻿import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -263,6 +263,7 @@ app.add_middleware(
         "http://127.0.0.1:5174",
         "http://127.0.0.1:5175",
         "http://127.0.0.1:5176",
+        "https://aloko-1.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -502,3 +503,5 @@ def health():
         "status": "healthy",
         "service": "aloko-backend",
     }
+
+
