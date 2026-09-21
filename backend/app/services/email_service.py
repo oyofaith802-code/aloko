@@ -2,6 +2,7 @@
 import asyncio
 import json
 import os
+import urllib.error
 import urllib.request
 from email.message import EmailMessage
 
@@ -68,8 +69,20 @@ def _send_resend_email_sync(
         },
     )
 
-    with urllib.request.urlopen(request, timeout=20) as response:
-        response_body = response.read().decode("utf-8")
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            response_body = response.read().decode("utf-8")
+
+    except urllib.error.HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"Resend API rejected email: HTTP {exc.code} {error_body}"
+        ) from exc
+
+    except urllib.error.URLError as exc:
+        raise RuntimeError(
+            f"Resend API connection failed: {exc}"
+        ) from exc
 
     if response.status < 200 or response.status >= 300:
         raise RuntimeError(
