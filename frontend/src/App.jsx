@@ -523,7 +523,7 @@ function BusinessAIWorkspace({ onBack }) {
       setMemory(Array.isArray(mem) ? mem : mem?.memory || mem?.memories || []);
       setReports(Array.isArray(reps) ? reps : reps?.reports || []);
     } catch (err) {
-      setError(err.message || "Failed to load business workspace.");
+setError(err.message || "Failed to load business workspace.");
     }
   };
 
@@ -999,7 +999,7 @@ function App() {
       setResetToken(token);
       setAuthMode("reset");
       setAuthStep("form");
-      setAuthError("");
+setAuthError("");
       setResetSuccess("");
     }
   }, []);
@@ -1454,6 +1454,13 @@ function App() {
 
     } catch (err) {
 
+      if (
+        err.message ===
+        "Email not verified. Please verify your email before signing in."
+      ) {
+        setAuthStep("verification");
+        setVerificationCode("");
+      }
       setAuthError(
         err.message ||
         "Authentication failed."
@@ -1547,7 +1554,7 @@ function App() {
       );
 
       setAuthError(
-        "A new verification code was generated. Check the backend terminal."
+        "A new verification code was sent to your email. Check your inbox."
       );
 
     } catch (err) {
@@ -6677,6 +6684,9 @@ function App() {
 
 
 export default App;
+
+
+
 
 
 
