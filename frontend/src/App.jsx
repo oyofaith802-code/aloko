@@ -959,7 +959,7 @@ function App() {
   ======================================================= */
 
   const [authMode, setAuthMode] =
-    useState("login");
+    useState("signup");
 
   const [authStep, setAuthStep] =
     useState("form");
@@ -1411,19 +1411,22 @@ setAuthError("");
 
       if (authMode === "signup") {
 
-        await signup({
-          email,
-          password:
-            authPassword,
-        });
+        const data =
+          await signup({
+            email,
+            password:
+              authPassword,
+          });
+
+        saveUserSession(data);
 
         localStorage.setItem(
           "aloko_onboarding_pending",
           "true"
         );
 
-        setAuthStep(
-          "verification"
+        setPage(
+          "welcome"
         );
 
       } else {
