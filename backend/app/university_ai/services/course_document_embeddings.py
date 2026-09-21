@@ -3,8 +3,6 @@ import re
 from typing import List
 
 from sqlalchemy.orm import Session
-from sentence_transformers import SentenceTransformer
-
 from app.university_ai.models.course_document import CourseDocument
 from app.university_ai.models.course_document_chunk import CourseDocumentChunk
 
@@ -20,6 +18,7 @@ def get_embedding_model():
     global _embedding_model
 
     if _embedding_model is None:
+        from sentence_transformers import SentenceTransformer
         _embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
 
     return _embedding_model
@@ -117,3 +116,5 @@ def build_course_document_chunks(
     db.commit()
 
     return len(chunks)
+
+

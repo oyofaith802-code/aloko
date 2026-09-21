@@ -1,7 +1,4 @@
-from argostranslate import translate
-
-
-def translate_text(
+﻿def translate_text(
     text: str,
     from_language: str,
     to_language: str
@@ -11,6 +8,8 @@ def translate_text(
 
     if from_language == to_language:
         return text
+
+    from argostranslate import translate
 
     translated = translate.translate(
         text,

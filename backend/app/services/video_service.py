@@ -1,8 +1,7 @@
-import os
+﻿import os
 import uuid
 import requests
 
-import fal_client
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,6 +17,8 @@ def generate_avatar_video(
 ):
     if not avatar_image_url:
         raise ValueError("Avatar image URL is missing")
+
+    import fal_client
 
     result = fal_client.subscribe(
         MODEL,

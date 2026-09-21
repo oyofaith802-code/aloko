@@ -1,7 +1,5 @@
-import os
+﻿import os
 import uuid
-import asyncio
-import edge_tts
 
 AUDIO_DIR = "storage/audio"
 
@@ -10,6 +8,8 @@ async def generate_speech(
     text: str,
     voice: str = "en-US-AriaNeural"
 ):
+    import edge_tts
+
     os.makedirs(AUDIO_DIR, exist_ok=True)
 
     filename = f"{uuid.uuid4()}.mp3"

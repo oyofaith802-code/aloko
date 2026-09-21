@@ -1,5 +1,4 @@
-import os
-from faster_whisper import WhisperModel
+﻿import os
 
 
 MODEL_SIZE = "base"
@@ -11,6 +10,8 @@ def get_model():
     global _model
 
     if _model is None:
+        from faster_whisper import WhisperModel
+
         _model = WhisperModel(
             MODEL_SIZE,
             device="cpu",

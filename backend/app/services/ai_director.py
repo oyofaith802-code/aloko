@@ -1,9 +1,8 @@
-import json
+﻿import json
 import os
 import re
 from typing import Any
 
-import ollama
 from sqlalchemy.orm import Session
 
 from app.models.avatar import Avatar
@@ -20,9 +19,12 @@ OLLAMA_HOST = os.getenv(
     "http://localhost:11434",
 )
 
-client = ollama.Client(
-    host=OLLAMA_HOST
-)
+def get_ollama_client():
+    import ollama
+
+    return ollama.Client(
+        host=OLLAMA_HOST
+    )
 
 
 class AIDirectorError(Exception):
@@ -838,7 +840,7 @@ async def generate_director_plan(
 
     try:
 
-        response = client.chat(
+        response = get_ollama_client().chat(
             model=OLLAMA_MODEL,
             messages=messages,
             format="json",
@@ -898,7 +900,7 @@ async def generate_director_plan(
 
         try:
 
-            retry_response = client.chat(
+            retry_response = get_ollama_client().chat(
                 model=OLLAMA_MODEL,
                 messages=correction_messages,
                 format="json",
