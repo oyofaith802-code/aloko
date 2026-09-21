@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   getLecturerDashboard,
+  createLecturerCourse,
   getLecturerCourseStudents,
   getLecturerCourseAssessments,
   getLecturerCourseScores,
@@ -28,6 +29,18 @@ export default function LecturerDashboard({ onBack }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showCreateCourseForm, setShowCreateCourseForm] = useState(false);
+  const [courseCreating, setCourseCreating] = useState(false);
+  const [courseCreateError, setCourseCreateError] = useState("");
+  const [courseForm, setCourseForm] = useState({
+    code: "",
+    title: "",
+    description: "",
+    credit_units: "",
+    level: "100",
+    semester: "First",
+    section: "",
+  });
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [courseDocuments, setCourseDocuments] = useState([]);
   const [courseDocumentsLoading, setCourseDocumentsLoading] = useState(false);
@@ -124,6 +137,54 @@ const [studentStatusFilter, setStudentStatusFilter] = useState("all");
       mounted = false;
     };
   }, []);
+
+  async function handleCreateCourse(event) {
+    event.preventDefault();
+    setCourseCreating(true);
+    setCourseCreateError("");
+
+    try {
+      const payload = {
+        code: courseForm.code.trim(),
+        title: courseForm.title.trim(),
+        description: courseForm.description.trim() || null,
+        credit_units:
+          courseForm.credit_units === ""
+            ? null
+            : Number(courseForm.credit_units),
+        level: courseForm.level || null,
+        semester: courseForm.semester || null,
+        section: courseForm.section.trim() || null,
+      };
+
+      if (!payload.code || !payload.title) {
+        throw new Error("Course code and title are required.");
+      }
+
+      await createLecturerCourse(payload);
+
+      const refreshed = await getLecturerDashboard();
+      setData(refreshed);
+
+      setCourseForm({
+        code: "",
+        title: "",
+        description: "",
+        credit_units: "",
+        level: "100",
+        semester: "First",
+        section: "",
+      });
+
+      setShowCreateCourseForm(false);
+    } catch (err) {
+      setCourseCreateError(
+        err?.message || "Unable to create course."
+      );
+    } finally {
+      setCourseCreating(false);
+    }
+  }
 
   async function loadCourseDocuments(course) {
     if (!course?.course_offering_id) return;
@@ -2915,9 +2976,122 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
         </section>
       ) : (
         <section className="lecturer-card">
-          <h2 className="lecturer-section-title">
-            Assigned Courses
-          </h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <h2 className="lecturer-section-title" style={{ margin: 0 }}>
+              Assigned Courses
+            </h2>
+
+            <button
+              type="button"
+              className="lecturer-primary-button"
+              onClick={() => {
+                setCourseCreateError("");
+                setShowCreateCourseForm((value) => !value);
+              }}
+            >
+              {showCreateCourseForm ? "Cancel" : "+ Create Course"}
+            </button>
+          </div>
+
+          {showCreateCourseForm && (
+            <form
+              onSubmit={handleCreateCourse}
+              style={{
+                padding: 18,
+                marginBottom: 20,
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                background: "#ffffff",
+              }}
+            >
+              <h3 style={{ marginTop: 0 }}>Create Independent Course</h3>
+
+              {courseCreateError && (
+                <div className="lecturer-error" style={{ marginBottom: 12 }}>
+                  {courseCreateError}
+                </div>
+              )}
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <input
+                  required
+                  placeholder="Course code"
+                  value={courseForm.code}
+                  onChange={(e) =>
+                    setCourseForm({ ...courseForm, code: e.target.value })
+                  }
+                />
+
+                <input
+                  required
+                  placeholder="Course title"
+                  value={courseForm.title}
+                  onChange={(e) =>
+                    setCourseForm({ ...courseForm, title: e.target.value })
+                  }
+                />
+
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="Credit units"
+                  value={courseForm.credit_units}
+                  onChange={(e) =>
+                    setCourseForm({ ...courseForm, credit_units: e.target.value })
+                  }
+                />
+
+                <input
+                  placeholder="Level"
+                  value={courseForm.level}
+                  onChange={(e) =>
+                    setCourseForm({ ...courseForm, level: e.target.value })
+                  }
+                />
+
+                <select
+                  value={courseForm.semester}
+                  onChange={(e) =>
+                    setCourseForm({ ...courseForm, semester: e.target.value })
+                  }
+                >
+                  <option value="First">First Semester</option>
+                  <option value="Second">Second Semester</option>
+                </select>
+
+                <input
+                  placeholder="Section (optional)"
+                  value={courseForm.section}
+                  onChange={(e) =>
+                    setCourseForm({ ...courseForm, section: e.target.value })
+                  }
+                />
+              </div>
+
+              <textarea
+                placeholder="Course description (optional)"
+                value={courseForm.description}
+                onChange={(e) =>
+                  setCourseForm({ ...courseForm, description: e.target.value })
+                }
+                style={{
+                  width: "100%",
+                  minHeight: 80,
+                  marginTop: 12,
+                  boxSizing: "border-box",
+                }}
+              />
+
+              <button
+                type="submit"
+                className="lecturer-primary-button"
+                disabled={courseCreating}
+                style={{ marginTop: 12 }}
+              >
+                {courseCreating ? "Creating Course..." : "Create Course"}
+              </button>
+            </form>
+          )}
 
           {courses.length === 0 ? (
             <div className="lecturer-empty">

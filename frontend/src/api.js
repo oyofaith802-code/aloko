@@ -1073,6 +1073,14 @@ export async function getLecturerCourses() {
   return apiFetch('/university/lecturer/courses');
 }
 
+export async function createLecturerCourse(payload) {
+  return apiFetch('/university/lecturer/courses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function uploadLecturerCourseDocument(
   courseOfferingId,
   file,
