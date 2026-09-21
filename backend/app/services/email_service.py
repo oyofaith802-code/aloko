@@ -66,6 +66,7 @@ def _send_resend_email_sync(
             "Authorization": f"Bearer {RESEND_API_KEY}",
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": "Aloko/1.0 (email-service)",
         },
     )
 
