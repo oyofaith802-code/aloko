@@ -1,0 +1,89 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Logs
+*.log
+
+# Generated/local storage
+storage/
+test_papers/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+
+# Model / media outputs
+*.mp4
+*.mov
+*.wav
+*.mp3
+*.webm
+*.zip
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Backups
+*.bak
+
+# External AI runtime
+SadTalker/
+
+# Development / patch scripts
+backend/patch_*.py
+backend/repair_*.py
+backend/fix_*.py
+backend/test_*.py
+frontend/patch_*.py
+frontend/repair_*.py
+frontend/fix_*.py
+frontend/add_*.py
+
+# Historical source backups
+*.bak
+*.backup
+*.backup*
+*.before
+*.before-*
+*.before_*
+*.security_backup
+*.webhook_backup
+
+# Temporary / mock development files
+backend/mock_portal.py
+
+# Development patch / repair scripts
+/backend/add_attendance_routes.py
+/backend/patch_*.py
+/backend/repair_*.py
+/backend/fix_*.py
+/backend/test_*.py
+/backend/mock_portal.py
+/backend/student_auth.py
+/backend/student_dashboard.py
+/backend/translator_service.py
+
+/frontend/add_*.py
+/frontend/patch_*.py
+/frontend/repair_*.py
+/frontend/fix_*.py
+/frontend/fix_*.ps1
+
+/backend/app/university_ai/services/ai_marking_backup.py
