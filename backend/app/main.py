@@ -179,9 +179,15 @@ from app.university_ai.routes.ai_marking import (
 )
 
 
+from app.database.connection import Base, engine
+
 # ============================================================
 # APP
 # ============================================================
+
+# Create any missing ORM tables automatically on startup.
+# This is safe because create_all() does not modify existing tables.
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Aloko AI Platform",
