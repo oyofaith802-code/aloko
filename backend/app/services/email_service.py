@@ -1,4 +1,8 @@
-﻿import os
+
+import asyncio
+import json
+import os
+import urllib.request
 from email.message import EmailMessage
 
 import aiosmtplib
@@ -6,11 +10,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ============================================================
+# EMAIL CONFIGURATION
+# ============================================================
+
 SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME", "").strip()
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
 SMTP_FROM = os.getenv("SMTP_FROM", "").strip()
+
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
+RESEND_FROM = os.getenv("RESEND_FROM", "").strip()
 
 FRONTEND_URL = os.getenv(
     "FRONTEND_URL",
@@ -18,7 +29,75 @@ FRONTEND_URL = os.getenv(
 ).strip()
 
 
-def _validate_email_config():
+# ============================================================
+# RESEND
+# ============================================================
+
+def _send_resend_email_sync(
+    recipient: str,
+    subject: str,
+    text_body: str,
+    html_body: str | None = None,
+):
+    if not RESEND_API_KEY:
+        raise RuntimeError("RESEND_API_KEY is not configured.")
+
+    if not RESEND_FROM:
+        raise RuntimeError("RESEND_FROM is not configured.")
+
+    payload = {
+        "from": RESEND_FROM,
+        "to": [recipient],
+        "subject": subject,
+        "text": text_body,
+    }
+
+    if html_body:
+        payload["html"] = html_body
+
+    data = json.dumps(payload).encode("utf-8")
+
+    request = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=data,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+    )
+
+    with urllib.request.urlopen(request, timeout=20) as response:
+        response_body = response.read().decode("utf-8")
+
+    if response.status < 200 or response.status >= 300:
+        raise RuntimeError(
+            f"Resend email request failed: HTTP {response.status} "
+            f"{response_body}"
+        )
+
+
+async def _send_resend_email(
+    recipient: str,
+    subject: str,
+    text_body: str,
+    html_body: str | None = None,
+):
+    await asyncio.to_thread(
+        _send_resend_email_sync,
+        recipient,
+        subject,
+        text_body,
+        html_body,
+    )
+
+
+# ============================================================
+# SMTP FALLBACK
+# ============================================================
+
+def _validate_smtp_config():
     missing = []
 
     if not SMTP_HOST:
@@ -40,13 +119,13 @@ def _validate_email_config():
         )
 
 
-async def _send_email(
+async def _send_smtp_email(
     recipient: str,
     subject: str,
     text_body: str,
     html_body: str | None = None,
 ):
-    _validate_email_config()
+    _validate_smtp_config()
 
     message = EmailMessage()
     message["From"] = SMTP_FROM
@@ -71,8 +150,42 @@ async def _send_email(
         password=SMTP_PASSWORD,
         use_tls=use_tls,
         start_tls=False if use_tls else True,
+        timeout=20,
     )
 
+
+# ============================================================
+# UNIFIED EMAIL SENDER
+# ============================================================
+
+async def _send_email(
+    recipient: str,
+    subject: str,
+    text_body: str,
+    html_body: str | None = None,
+):
+    # Production: Resend HTTPS API.
+    if RESEND_API_KEY:
+        await _send_resend_email(
+            recipient=recipient,
+            subject=subject,
+            text_body=text_body,
+            html_body=html_body,
+        )
+        return
+
+    # Local development fallback: Gmail SMTP.
+    await _send_smtp_email(
+        recipient=recipient,
+        subject=subject,
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+
+# ============================================================
+# VERIFICATION EMAIL
+# ============================================================
 
 async def send_verification_email(
     recipient: str,
@@ -125,6 +238,10 @@ If you did not create an Aloko account, you can ignore this email.
         html_body=html_body,
     )
 
+
+# ============================================================
+# PASSWORD RESET EMAIL
+# ============================================================
 
 async def send_password_reset_email(
     recipient: str,
