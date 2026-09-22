@@ -55,7 +55,6 @@ STORAGE_DIR = Path("storage")
 def get_avatar_file_path(
     image_url: str,
 ) -> str:
-
     if not image_url:
         raise HTTPException(
             status_code=404,
@@ -67,45 +66,24 @@ def get_avatar_file_path(
         "/",
     )
 
-    prefix = "/storage/"
+    # Handle full URLs such as:
+    # https://aloko.onrender.com/storage/avatars/example.jpg
+    storage_marker = "/storage/"
 
-    if normalized.startswith(prefix):
-
-        relative_path = normalized[
-            len(prefix):
-        ]
+    if storage_marker in normalized:
+        relative_path = normalized.split(
+            storage_marker,
+            1,
+        )[1]
 
         file_path = (
-            STORAGE_DIR
-            / Path(relative_path)
+            STORAGE_DIR /
+            Path(relative_path)
         )
-
     else:
+        file_path = Path(normalized)
 
-        file_path = Path(
-            image_url
-        )
-
-    file_path = file_path.resolve()
-
-    storage_root = (
-        STORAGE_DIR.resolve()
-    )
-
-    try:
-
-        file_path.relative_to(
-            storage_root
-        )
-
-    except ValueError as exc:
-
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid avatar file path.",
-        ) from exc
-
-    return str(file_path)
+    return str(file_path.resolve())
 
 
 # ============================================================
