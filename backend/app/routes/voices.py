@@ -18,6 +18,7 @@ from app.models.voice import Voice
 from app.models.user import User
 from app.services.tts_service import generate_speech
 from app.services.voice_catalog import get_all_voices
+from app.services.voice_clone_service import clone_voice
 from app.core.security import get_current_user
 
 
@@ -301,24 +302,19 @@ async def upload_voice(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Save a user's personal voice recording.
+    Save and clone a user's personal voice.
 
-    IMPORTANT:
+    Flow:
 
-    Phase 5 ONLY stores the recording.
-
-    It does NOT call a paid voice-cloning provider.
-
-    Actual voice cloning will be connected in Phase 6.
-
-    Voice lifecycle:
-
-        recorded
-            ↓
-        Phase 6 cloning
-            ↓
-        ready
-
+        uploaded recording
+            ?
+        local storage
+            ?
+        ElevenLabs voice cloning
+            ?
+        provider_voice_id
+            ?
+        status = ready
     """
 
     # --------------------------------------------------------
@@ -333,10 +329,7 @@ async def upload_voice(
     if len(clean_name) > 100:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Voice name must be 100 characters "
-                "or less."
-            ),
+            detail="Voice name must be 100 characters or less.",
         )
 
     # --------------------------------------------------------
@@ -351,17 +344,14 @@ async def upload_voice(
             detail="Audio filename is required.",
         )
 
-    extension = Path(
-        original_filename
-    ).suffix.lower()
+    extension = Path(original_filename).suffix.lower()
 
     if extension not in ALLOWED_AUDIO_EXTENSIONS:
         raise HTTPException(
             status_code=400,
             detail=(
                 "Unsupported audio format. "
-                "Supported formats: MP3, WAV, M4A, "
-                "AAC, WEBM and OGG."
+                "Supported formats: MP3, WAV, M4A, AAC, WEBM and OGG."
             ),
         )
 
@@ -371,7 +361,6 @@ async def upload_voice(
 
     try:
         file_data = await audio.read()
-
     except Exception as exc:
         raise HTTPException(
             status_code=400,
@@ -391,42 +380,64 @@ async def upload_voice(
     if len(file_data) > MAX_AUDIO_SIZE:
         raise HTTPException(
             status_code=413,
-            detail=(
-                "Audio file must be 25 MB or smaller."
-            ),
+            detail="Audio file must be 25 MB or smaller.",
         )
 
     # --------------------------------------------------------
     # GENERATE SAFE UNIQUE FILENAME
     # --------------------------------------------------------
 
-    filename = (
-        f"{uuid.uuid4().hex}"
-        f"{extension}"
-    )
+    filename = f"{uuid.uuid4().hex}{extension}"
 
-    file_path = (
-        UPLOAD_DIR / filename
-    )
+    file_path = UPLOAD_DIR / filename
 
-    audio_url = (
-        f"/storage/voices/{filename}"
-    )
+    audio_url = f"/storage/voices/{filename}"
 
     # --------------------------------------------------------
-    # SAVE AUDIO
+    # SAVE AUDIO LOCALLY
     # --------------------------------------------------------
 
     try:
-        file_path.write_bytes(
-            file_data
-        )
-
+        file_path.write_bytes(file_data)
     except OSError as exc:
         raise HTTPException(
             status_code=500,
             detail="Failed to save audio file.",
         ) from exc
+
+    # --------------------------------------------------------
+    # CLONE VOICE WITH ELEVENLABS
+    # --------------------------------------------------------
+
+    try:
+        provider_voice_id = clone_voice(
+            name=clean_name,
+            audio_bytes=file_data,
+        )
+
+    except Exception as exc:
+        # The local recording must not remain as a misleading
+        # personal voice if provider cloning fails.
+        try:
+            file_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+        raise HTTPException(
+            status_code=502,
+            detail=f"Personal voice cloning failed: {str(exc)}",
+        ) from exc
+
+    if not provider_voice_id:
+        try:
+            file_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+        raise HTTPException(
+            status_code=502,
+            detail="Personal voice cloning failed: no provider voice ID returned.",
+        )
 
     # --------------------------------------------------------
     # CREATE DATABASE RECORD
@@ -437,14 +448,8 @@ async def upload_voice(
         name=clean_name,
         voice_type="custom",
         audio_url=audio_url,
-
-        # No cloning provider connected yet.
-        provider_voice_id=None,
-
-        # IMPORTANT:
-        # The recording has been successfully saved,
-        # but it cannot generate cloned speech yet.
-        status="recorded",
+        provider_voice_id=provider_voice_id,
+        status="ready",
     )
 
     try:
@@ -455,11 +460,8 @@ async def upload_voice(
     except Exception as exc:
         db.rollback()
 
-        # Remove audio if database creation fails.
         try:
-            file_path.unlink(
-                missing_ok=True
-            )
+            file_path.unlink(missing_ok=True)
         except OSError:
             pass
 
@@ -468,56 +470,21 @@ async def upload_voice(
             detail="Failed to save custom voice.",
         ) from exc
 
-    # ========================================================
-    # PHASE 5 ENDS HERE
-    # ========================================================
-    #
-    # DO NOT CALL clone_voice() HERE.
-    #
-    # Phase 6 will perform:
-    #
-    # stored recording
-    #       ↓
-    # voice cloning provider
-    #       ↓
-    # provider_voice_id
-    #       ↓
-    # status = ready
-    #
-    # ========================================================
+    # --------------------------------------------------------
+    # READY
+    # --------------------------------------------------------
 
     return {
-        "message": (
-            "Personal voice recording saved successfully."
-        ),
-
+        "message": "Personal voice cloned successfully.",
         "voice_id": voice.id,
-
         "user_id": voice.user_id,
-
         "name": voice.name,
-
         "voice_type": voice.voice_type,
-
         "status": voice.status,
-
-        "provider_voice_id": None,
-
+        "provider_voice_id": voice.provider_voice_id,
         "audio_url": voice.audio_url,
-
-        "cloning_available": False,
-
-        "phase": 5,
-
-        "next_step": (
-            "Voice cloning will be connected in Phase 6."
-        ),
+        "cloning_available": True,
     }
-
-
-# ============================================================
-# GET MY CUSTOM VOICES
-# ============================================================
 
 @router.get("/me")
 def get_my_voices(
