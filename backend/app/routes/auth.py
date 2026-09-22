@@ -214,9 +214,16 @@ def signup(
     db.commit()
     db.refresh(new_user)
 
+    token = create_access_token(
+        new_user.id,
+        new_user.email,
+    )
+
     return {
         "message": "Account created successfully.",
         "verification_required": False,
+        "access_token": token,
+        "token_type": "bearer",
         "user_id": new_user.id,
         "email": new_user.email,
         "student_invitation_linked": linked_invitations > 0,
