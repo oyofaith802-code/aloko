@@ -1983,20 +1983,24 @@ setAuthError("");
   ======================================================= */
 
   function handleLanguageChange(
+  value
+) {
+
+  setSelectedLanguage(
     value
-  ) {
+  );
 
-    setSelectedLanguage(
-      value
-    );
+  setSelectedCountry("");
 
-    setSelectedCountry("");
+  setSelectedAccent("");
 
-    setSelectedAccent("");
-  }
+  setSelectedGender("");
+
+  setSelectedStyle("");
+}
 
 
-  function handleCountryChange(
+function handleCountryChange(
     value
   ) {
 
@@ -6763,6 +6767,9 @@ setAuthError("");
 
 
 export default App;
+
+
+
 
 
 
