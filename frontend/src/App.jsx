@@ -1131,6 +1131,7 @@ setAuthError("");
   const [creatorSaving, setCreatorSaving] = useState(false);
   const [creatorVoiceType, setCreatorVoiceType] = useState("built_in");
   const [creatorSelectedPersonalVoice, setCreatorSelectedPersonalVoice] = useState("");
+  const [creatorEnvironment, setCreatorEnvironment] = useState("Studio");
   const [creatorRenderLoading, setCreatorRenderLoading] = useState(false);
   const [creatorRenderResult, setCreatorRenderResult] = useState(null);
   const [creatorRenderError, setCreatorRenderError] = useState("");
@@ -6702,21 +6703,116 @@ function handleCountryChange(
                 </div>
 
                 <div className="form-section" style={{ marginTop: "28px" }}>
-                  <label>Voice</label>
-                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                    <button type="button" onClick={() => setCreatorVoiceType("built_in")} style={{ padding: "10px 15px", borderRadius: "10px", border: creatorVoiceType === "built_in" ? "2px solid #8d95ff" : "1px solid rgba(255,255,255,0.12)", background: "transparent", cursor: "pointer" }}>Built-in Voice</button>
-                    <button type="button" onClick={() => setCreatorVoiceType("personal")} disabled={!readyPersonalVoices.length} style={{ padding: "10px 15px", borderRadius: "10px", border: creatorVoiceType === "personal" ? "2px solid #8d95ff" : "1px solid rgba(255,255,255,0.12)", background: "transparent", cursor: readyPersonalVoices.length ? "pointer" : "not-allowed", opacity: readyPersonalVoices.length ? 1 : 0.5 }}>My Personal Voice</button>
-                  </div>
-                  {creatorVoiceType === "built_in" && <p style={{ marginTop: "12px" }}>The current Creator renderer uses its configured built-in voice when a personal voice is not selected.</p>}
-                  {creatorVoiceType === "personal" && (readyPersonalVoices.length ? (
-                    <select value={creatorSelectedPersonalVoice} onChange={e => setCreatorSelectedPersonalVoice(e.target.value)} style={{ width: "100%", marginTop: "12px" }}>
-                      <option value="">Select your personal voice</option>
-                      {readyPersonalVoices.map(v => <option key={v.id} value={v.id}>{v.name || "Personal Voice"}</option>)}
-                    </select>
-                  ) : <div style={{ marginTop: "12px", padding: "14px", borderRadius: "10px" }}>No ready personal voices are available yet. Your uploaded voice must be ready before it can be used.</div>)}
-                </div>
+  <label>Voice</label>
 
-                <div className="form-section" style={{ marginTop: "32px" }}>
+  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px", marginTop: "12px" }}>
+    <button
+      type="button"
+      onClick={() => setCreatorVoiceType("personal")}
+      style={{
+        padding: "16px",
+        borderRadius: "12px",
+        border: creatorVoiceType === "personal" ? "2px solid #8d95ff" : "1px solid rgba(255,255,255,0.12)",
+        background: creatorVoiceType === "personal" ? "rgba(141,149,255,0.12)" : "transparent",
+        color: "inherit",
+        cursor: "pointer",
+        textAlign: "left"
+      }}
+    >
+      <strong>🎙 My Personal Voice</strong>
+      <div style={{ fontSize: "12px", opacity: 0.7, marginTop: "5px" }}>
+        Use your cloned/personal voice
+      </div>
+    </button>
+
+    <button
+      type="button"
+      onClick={() => setCreatorVoiceType("built_in")}
+      style={{
+        padding: "16px",
+        borderRadius: "12px",
+        border: creatorVoiceType === "built_in" ? "2px solid #8d95ff" : "1px solid rgba(255,255,255,0.12)",
+        background: creatorVoiceType === "built_in" ? "rgba(141,149,255,0.12)" : "transparent",
+        color: "inherit",
+        cursor: "pointer",
+        textAlign: "left"
+      }}
+    >
+      <strong>🔊 Built-in Aloko Voice</strong>
+      <div style={{ fontSize: "12px", opacity: 0.7, marginTop: "5px" }}>
+        Use an Aloko built-in voice
+      </div>
+    </button>
+  </div>
+
+  {creatorVoiceType === "personal" && (
+    readyPersonalVoices.length > 0 ? (
+      <select
+        value={creatorSelectedPersonalVoice}
+        onChange={e => setCreatorSelectedPersonalVoice(e.target.value)}
+        style={{ width: "100%", marginTop: "12px" }}
+      >
+        <option value="">Select your personal voice</option>
+        {readyPersonalVoices.map(v => (
+          <option key={v.id} value={v.id}>
+            {v.name || "My Personal Voice"}
+          </option>
+        ))}
+      </select>
+    ) : (
+      <div style={{ marginTop: "12px", padding: "14px", borderRadius: "10px", background: "rgba(255,180,80,0.08)" }}>
+        No ready personal voice is available yet. Create and finish your Personal Voice first.
+      </div>
+    )
+  )}
+
+  {creatorVoiceType === "built_in" && (
+    <select
+      value={selectedVoice}
+      onChange={e => setSelectedVoice(e.target.value)}
+      style={{ width: "100%", marginTop: "12px" }}
+    >
+      {voices.map(voice => (
+        <option key={voice.tts_voice} value={voice.tts_voice}>
+          {voice.name || voice.tts_voice}
+        </option>
+      ))}
+    </select>
+  )}
+</div>
+
+<div className="form-section" style={{ marginTop: "28px" }}>
+  <label>Background / Environment</label>
+
+  <select
+    value={creatorEnvironment}
+    onChange={e => {
+      const value = e.target.value;
+      setCreatorEnvironment(value);
+      setCreatorScenes(previous =>
+        previous.map(scene => ({ ...scene, environment: value }))
+      );
+    }}
+    style={{ width: "100%", marginTop: "10px" }}
+  >
+    <option value="Studio">Studio</option>
+    <option value="Office">Office</option>
+    <option value="Inside Car">Inside Car</option>
+    <option value="Classroom">Classroom</option>
+    <option value="Living Room">Living Room</option>
+    <option value="News Studio">News Studio</option>
+    <option value="Outdoor">Outdoor</option>
+    <option value="Conference Room">Conference Room</option>
+    <option value="Hospital">Hospital</option>
+    <option value="Restaurant">Restaurant</option>
+  </select>
+
+  <p style={{ marginTop: "7px", fontSize: "12px", opacity: 0.65 }}>
+    Choose where your AI video should appear before writing the script.
+  </p>
+</div>
+
+<div className="form-section" style={{ marginTop: "32px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "15px" }}>
                     <div><label>Scenes</label><p style={{ marginTop: "5px" }}>Each scene becomes one part of your final video.</p></div>
                     <button type="button" className="generate-button" onClick={addCreatorScene} disabled={!creatorProject || creatorSaving}>+ Add Scene</button>
@@ -6732,7 +6828,7 @@ function handleCountryChange(
                             <strong>Scene {scene.scene_order}</strong>
                             <button type="button" onClick={() => removeCreatorScene(scene.id)} disabled={creatorSaving} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#ff8f8f" }}>Delete</button>
                           </div>
-                          <textarea value={scene.script || ""} onChange={e => { const value=e.target.value; setCreatorScenes(prev => prev.map(item => item.id === scene.id ? {...item, script:value} : item)); }} onBlur={e => saveCreatorScene(scene.id, { script:e.target.value, avatar_id:selectedAvatarId ? Number(selectedAvatarId) : null, voice_id:creatorVoiceType === "personal" && creatorSelectedPersonalVoice ? Number(creatorSelectedPersonalVoice) : null })} maxLength={5000} rows={6} placeholder="Write what your avatar should say in this scene..." style={{ width: "100%", resize: "vertical" }} />
+                          <textarea value={scene.script || ""} onChange={e => { const value=e.target.value; setCreatorScenes(prev => prev.map(item => item.id === scene.id ? {...item, script:value} : item)); }} onBlur={e => saveCreatorScene(scene.id, { script:e.target.value, avatar_id:selectedAvatarId ? Number(selectedAvatarId) : null, voice_id:creatorVoiceType === "personal" && creatorSelectedPersonalVoice ? Number(creatorSelectedPersonalVoice) : null, environment:creatorEnvironment })} maxLength={5000} rows={6} placeholder="Write what your avatar should say in this scene..." style={{ width: "100%", resize: "vertical" }} />
                           <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "12px", opacity: 0.65 }}><span>Avatar: {selectedAvatar?.name || "Not selected"}</span><span>{(scene.script || "").length}/5000</span></div>
                         </div>
                       ))}
@@ -6767,6 +6863,10 @@ function handleCountryChange(
 
 
 export default App;
+
+
+
+
 
 
 
