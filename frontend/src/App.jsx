@@ -1474,14 +1474,12 @@ setAuthError("");
 
         saveUserSession(data);
 
-        localStorage.setItem(
-          "aloko_onboarding_pending",
-          "true"
-        );
+        setPage("dashboard");
 
-        setPage(
-          "welcome"
-        );
+
+
+
+        ;
 
       } else {
 
@@ -7027,4 +7025,6 @@ async function handleCreateAvatar() {
 
 
 export default App;
+
+
 
