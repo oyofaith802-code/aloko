@@ -1122,1046 +1122,5556 @@ setAuthError("");
      CREATOR STUDIO
   ======================================================= */
 
-  if (page === "video") {
-    const readyPersonalVoices = creatorMyVoices.filter(
-      v =>
-        v.voice_type === "custom" &&
-        v.status === "ready" &&
-        v.provider_voice_id
-    );
+  const [creatorProjects, setCreatorProjects] = useState([]);
+  const [creatorProject, setCreatorProject] = useState(null);
+  const [creatorScenes, setCreatorScenes] = useState([]);
+  const [creatorMyVoices, setCreatorMyVoices] = useState([]);
+  const [creatorProjectName, setCreatorProjectName] = useState("My AI Video");
+  const [creatorLoading, setCreatorLoading] = useState(false);
+  const [creatorSaving, setCreatorSaving] = useState(false);
+  const [creatorVoiceType, setCreatorVoiceType] = useState("built_in");
+  const [creatorSelectedPersonalVoice, setCreatorSelectedPersonalVoice] = useState("");
+  const [creatorRenderLoading, setCreatorRenderLoading] = useState(false);
+  const [creatorRenderResult, setCreatorRenderResult] = useState(null);
+  const [creatorRenderError, setCreatorRenderError] = useState("");
 
-    const selectedAvatar = avatars.find(
-      a => Number(a.id) === Number(selectedAvatarId)
-    );
+  /* =======================================================
+     AI DIRECTOR
+  ======================================================= */
+  const [aiDirectorIdea, setAiDirectorIdea] = useState("");
+  const [aiDirectorLoading, setAiDirectorLoading] = useState(false);
+  const [aiDirectorError, setAiDirectorError] = useState("");
+  const [aiDirectorResult, setAiDirectorResult] = useState(null);
+  const [aiDirectorVoiceMode, setAiDirectorVoiceMode] = useState("auto");
+  const [aiDirectorPersonalVoice, setAiDirectorPersonalVoice] = useState("");
+  const [aiDirectorBuiltinVoice, setAiDirectorBuiltinVoice] = useState("");
+  const [aiDirectorAvatarMode, setAiDirectorAvatarMode] = useState("auto");
+  const [aiDirectorAvatarId, setAiDirectorAvatarId] = useState("");
 
-    const builtInVoices = [
-      { value: "en-US-AriaNeural", label: "Aria" },
-      { value: "en-US-GuyNeural", label: "Guy" },
-      { value: "en-US-JennyNeural", label: "Jenny" },
-      { value: "en-US-SaraNeural", label: "Sara" },
-    ];
 
-    const saveSceneField = (sceneId, field, value) => {
-      setCreatorScenes(prev =>
-        prev.map(scene =>
-          scene.id === sceneId
-            ? { ...scene, [field]: value }
-            : scene
-        )
-      );
+  /* =======================================================
+     AVATAR
+  ======================================================= */
 
-      saveCreatorScene(sceneId, {
-        [field]: value,
-      });
+  const [avatars, setAvatars] =
+    useState([]);
+
+  const [loadingAvatars, setLoadingAvatars] =
+    useState(false);
+
+  const [selectedAvatarId, setSelectedAvatarId] =
+    useState("");
+
+  const [avatarType, setAvatarType] =
+    useState("");
+
+  const [avatarName, setAvatarName] =
+    useState("");
+
+  const [avatarImage, setAvatarImage] =
+    useState(null);
+
+  const [avatarUploading, setAvatarUploading] =
+    useState(false);
+
+
+  /* =======================================================
+     USER VOICE TEST
+  ======================================================= */
+
+  const [voiceRecording, setVoiceRecording] =
+    useState(false);
+
+  const [voiceRecordingSeconds, setVoiceRecordingSeconds] =
+    useState(0);
+
+  const [voiceTestAudioUrl, setVoiceTestAudioUrl] =
+    useState("");
+
+  const [personalVoiceRecordingBlob, setPersonalVoiceRecordingBlob] =
+    useState(null);
+
+  const [personalVoiceName, setPersonalVoiceName] =
+    useState("My Personal Voice");
+
+  const [personalVoiceUploading, setPersonalVoiceUploading] =
+    useState(false);
+
+  const voiceRecorderRef =
+    useRef(null);
+
+  const voiceChunksRef =
+    useRef([]);
+
+  const voiceTimerRef =
+    useRef(null);
+
+
+  /* =======================================================
+     TRANSLATOR
+  ======================================================= */
+
+  const [translatorLanguages, setTranslatorLanguages] =
+    useState([]);
+
+  const [translatorLocales, setTranslatorLocales] =
+    useState([]);
+
+  const [translatorFile, setTranslatorFile] =
+    useState(null);
+
+  const [translatorTargetLanguage, setTranslatorTargetLanguage] =
+    useState("en");
+
+  const [translatorCountry, setTranslatorCountry] =
+    useState("");
+
+  const [translatorAccent, setTranslatorAccent] =
+    useState("");
+
+  const [translatorGender, setTranslatorGender] =
+    useState("");
+
+  const [translatorVoice, setTranslatorVoice] =
+    useState("");
+
+  const [translatorResult, setTranslatorResult] =
+    useState(null);
+
+  const [translatorLoading, setTranslatorLoading] =
+    useState(false);
+
+  const [translatorError, setTranslatorError] =
+    useState("");
+
+  const [translatorPreviewLoading, setTranslatorPreviewLoading] =
+    useState(false);
+
+  const [translatorPreviewAudioUrl, setTranslatorPreviewAudioUrl] =
+    useState("");
+
+  const [recording, setRecording] =
+    useState(false);
+
+  const [recordingSeconds, setRecordingSeconds] =
+    useState(0);
+
+  const mediaRecorderRef =
+    useRef(null);
+
+  const recordingChunksRef =
+    useRef([]);
+
+  const recordingTimerRef =
+    useRef(null);
+
+
+  /* =======================================================
+     SAVE SESSION
+  ======================================================= */
+
+  function saveUserSession(data) {
+    const session = {
+      user_id: data.user_id,
+      email: data.email,
     };
 
+    localStorage.setItem(
+      "aloko_user",
+      JSON.stringify(session)
+    );
+
+    setUser(session);
+
+    setAuthEmail("");
+    setAuthPassword("");
+    setVerificationCode("");
+    setAuthError("");
+    setAuthStep("form");
+  }
+
+
+  /* =======================================================
+     SIGNUP / LOGIN
+  ======================================================= */
+
+  async function handleForgotPassword(event) {
+    event.preventDefault();
+
+    setAuthError("");
+    setResetSuccess("");
+
+    const email = authEmail.trim().toLowerCase();
+
+    if (!email) {
+      setAuthError("Please enter your email address.");
+      return;
+    }
+
+    setAuthLoading(true);
+
+    try {
+      const data = await forgotPassword({ email });
+
+      setResetSuccess(
+        data?.message ||
+        "If an account exists for this email, a password reset link will be sent."
+      );
+    } catch (err) {
+      setAuthError(
+        err?.message ||
+        "Unable to process password reset request."
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+
+  async function handleResetPassword(event) {
+    event.preventDefault();
+
+    setAuthError("");
+    setResetSuccess("");
+
+    if (!resetToken.trim()) {
+      setAuthError("Invalid or missing password reset token.");
+      return;
+    }
+
+    if (resetPasswordValue.length < 6) {
+      setAuthError("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (resetPasswordValue !== resetPasswordConfirm) {
+      setAuthError("Passwords do not match.");
+      return;
+    }
+
+    setAuthLoading(true);
+
+    try {
+      await resetPassword({
+        token: resetToken.trim(),
+        new_password: resetPasswordValue,
+      });
+
+      setResetPasswordValue("");
+      setResetPasswordConfirm("");
+      setResetToken("");
+
+      setResetSuccess(
+        "Password reset successfully. You can now sign in."
+      );
+
+      setAuthMode("login");
+    } catch (err) {
+      setAuthError(
+        err?.message ||
+        "Password reset failed."
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+
+  async function handleAuthSubmit(event) {
+    event.preventDefault();
+
+    setAuthError("");
+
+    const email =
+      authEmail
+        .trim()
+        .toLowerCase();
+
+    if (!email) {
+      setAuthError(
+        "Please enter your email address."
+      );
+
+      return;
+    }
+
+    if (
+      authPassword.length < 6
+    ) {
+      setAuthError(
+        "Password must be at least 6 characters."
+      );
+
+      return;
+    }
+
+    setAuthLoading(true);
+
+    try {
+
+      if (authMode === "signup") {
+
+        const data =
+          await signup({
+            email,
+            password:
+              authPassword,
+          });
+
+        saveUserSession(data);
+
+        localStorage.setItem(
+          "aloko_onboarding_pending",
+          "true"
+        );
+
+        setPage(
+          "welcome"
+        );
+
+      } else {
+
+        const data =
+          await login({
+            email,
+            password:
+              authPassword,
+          });
+
+        saveUserSession(data);
+
+        if (
+          localStorage.getItem(
+            "aloko_onboarding_pending"
+          ) === "true"
+        ) {
+          setPage(
+            "welcome"
+          );
+        } else {
+          setPage(
+            "home"
+          );
+        }
+      }
+
+    } catch (err) {
+
+      if (
+        err.message ===
+        "Email not verified. Please verify your email before signing in."
+      ) {
+        setAuthStep("verification");
+        setVerificationCode("");
+      }
+      setAuthError(
+        err.message ||
+        "Authentication failed."
+      );
+
+    } finally {
+
+      setAuthLoading(
+        false
+      );
+    }
+  }
+
+
+  /* =======================================================
+     VERIFY EMAIL
+  ======================================================= */
+
+  async function handleVerifyEmail(event) {
+    event.preventDefault();
+
+    setAuthError("");
+
+    if (
+      !/^\d{6}$/.test(
+        verificationCode
+      )
+    ) {
+      setAuthError(
+        "Enter the 6-digit verification code."
+      );
+
+      return;
+    }
+
+    setAuthLoading(true);
+
+    try {
+
+      const data =
+        await verifyEmail({
+          email:
+            authEmail
+              .trim()
+              .toLowerCase(),
+
+          code:
+            verificationCode,
+        });
+
+      localStorage.setItem(
+        "aloko_onboarding_pending",
+        "true"
+      );
+
+      saveUserSession(data);
+
+      setPage(
+        "welcome"
+      );
+
+    } catch (err) {
+
+      setAuthError(
+        err.message ||
+        "Verification failed."
+      );
+
+    } finally {
+
+      setAuthLoading(
+        false
+      );
+    }
+  }
+
+
+  /* =======================================================
+     RESEND VERIFICATION
+  ======================================================= */
+
+  async function handleResendVerification() {
+    setAuthError("");
+
+    try {
+
+      await resendVerification(
+        authEmail
+          .trim()
+          .toLowerCase()
+      );
+
+      setAuthError(
+        "A new verification code was sent to your email. Check your inbox."
+      );
+
+    } catch (err) {
+
+      setAuthError(
+        err.message ||
+        "Could not resend verification code."
+      );
+    }
+  }
+
+
+  function switchAuthMode(mode) {
+    setAuthMode(mode);
+    setAuthStep("form");
+    setAuthError("");
+    setAuthEmail("");
+    setAuthPassword("");
+    setVerificationCode("");
+  }
+
+
+  /* =======================================================
+     LOGOUT
+  ======================================================= */
+
+  function logout() {
+    clearAuthToken();
+
+    localStorage.removeItem(
+      "aloko_user"
+    );
+
+    setUser(null);
+
+    setAvatars([]);
+
+    setSelectedAvatarId("");
+
+    setPage("home");
+  }
+
+
+  /* =======================================================
+     LOAD USER AVATARS
+  ======================================================= */
+
+  useEffect(() => {
+
+    if (!user) {
+      return;
+    }
+
+    async function loadAvatars() {
+
+      setLoadingAvatars(
+        true
+      );
+
+      try {
+
+        const data =
+          await getMyAvatars();
+
+        const loaded =
+          Array.isArray(data)
+            ? data
+            : data.avatars || [];
+
+        setAvatars(
+          loaded
+        );
+
+        if (
+          loaded.length > 0
+        ) {
+
+          const first =
+            loaded[0];
+
+          setSelectedAvatarId(
+            first.id
+          );
+          if (!aiDirectorAvatarId) {
+            setAiDirectorAvatarId(String(first.id));
+          }
+        }
+
+      } catch (err) {
+
+        if (
+          err.message
+            ?.toLowerCase()
+            .includes("authentication")
+        ) {
+          logout();
+          return;
+        }
+
+        setError(
+          err.message
+        );
+
+      } finally {
+
+        setLoadingAvatars(
+          false
+        );
+      }
+    }
+
+    loadAvatars();
+
+  }, [user]);
+
+
+  /* =======================================================
+     LOAD VOICES
+  ======================================================= */
+
+  useEffect(() => {
+
+    if (!user) {
+      return;
+    }
+
+    if (
+      page !== "home" &&
+      page !== "voice" &&
+      page !== "video" &&
+      page !== "translator"
+    ) {
+      return;
+    }
+
+    async function loadVoices() {
+
+      setLoadingVoices(
+        true
+      );
+
+      try {
+
+        const data =
+          await getVoices();
+
+        const loaded =
+          data.voices || [];
+
+        setVoices(
+          loaded
+        );
+
+        if (
+          loaded.length > 0
+        ) {
+
+          const first =
+            loaded[0];
+
+          setSelectedLanguage(
+            first.language || ""
+          );
+
+          setSelectedCountry(
+            first.country || ""
+          );
+
+          setSelectedAccent(
+            first.accent || ""
+          );
+
+          setSelectedGender(
+            first.gender || ""
+          );
+
+          setSelectedVoice(
+            first.tts_voice || ""
+          );
+
+          const english =
+            loaded.find(
+              (voice) =>
+                voice.language === "en"
+            );
+
+          if (english) {
+            setTranslatorVoice(
+              english.tts_voice
+            );
+            if (!aiDirectorBuiltinVoice) {
+              setAiDirectorBuiltinVoice(english.tts_voice);
+            }
+          }
+        }
+
+      } catch (err) {
+
+        setError(
+          err.message
+        );
+
+      } finally {
+
+        setLoadingVoices(
+          false
+        );
+      }
+    }
+
+    loadVoices();
+
+  }, [page, user, aiDirectorBuiltinVoice]);
+
+
+  /* =======================================================
+     LOAD TRANSLATOR DATA
+  ======================================================= */
+
+  useEffect(() => {
+
+    if (
+      !user ||
+      page !== "translator"
+    ) {
+      return;
+    }
+
+    async function loadTranslatorData() {
+
+      setTranslatorError("");
+
+      try {
+
+        const [
+          languageData,
+          localeData,
+        ] =
+          await Promise.all([
+            getTranslatorLanguages(),
+            getTranslatorLocales(),
+          ]);
+
+        setTranslatorLanguages(
+          languageData.languages || []
+        );
+
+        setTranslatorLocales(
+          localeData.locales || []
+        );
+
+      } catch (err) {
+
+        setTranslatorError(
+          err.message
+        );
+      }
+    }
+
+    loadTranslatorData();
+
+  }, [page, user]);
+
+
+  /* =======================================================
+     VOICE FILTER DATA
+  ======================================================= */
+
+  const languages =
+    useMemo(() => {
+
+      return [
+        ...new Set(
+          voices
+            .map(
+              (voice) =>
+                voice.language
+            )
+            .filter(Boolean)
+        ),
+      ].sort();
+
+    }, [voices]);
+
+
+  const countries =
+    useMemo(() => {
+
+      return [
+        ...new Set(
+          voices
+            .filter(
+              (voice) =>
+                !selectedLanguage ||
+                voice.language ===
+                  selectedLanguage
+            )
+            .map(
+              (voice) =>
+                voice.country
+            )
+            .filter(Boolean)
+        ),
+      ].sort();
+
+    }, [
+      voices,
+      selectedLanguage,
+    ]);
+
+
+  const accents =
+    useMemo(() => {
+
+      return [
+        ...new Set(
+          voices
+            .filter(
+              (voice) =>
+                (
+                  !selectedLanguage ||
+                  voice.language ===
+                    selectedLanguage
+                ) &&
+                (
+                  !selectedCountry ||
+                  voice.country ===
+                    selectedCountry
+                )
+            )
+            .map(
+              (voice) =>
+                voice.accent
+            )
+            .filter(Boolean)
+        ),
+      ].sort();
+
+    }, [
+      voices,
+      selectedLanguage,
+      selectedCountry,
+    ]);
+
+
+  const filteredVoices =
+    useMemo(() => {
+
+      return voices.filter(
+        (voice) =>
+          (
+            !selectedLanguage ||
+            voice.language ===
+              selectedLanguage
+          ) &&
+          (
+            !selectedCountry ||
+            voice.country ===
+              selectedCountry
+          ) &&
+          (
+            !selectedAccent ||
+            voice.accent ===
+              selectedAccent
+          ) &&
+          (
+            !selectedGender ||
+            voice.gender ===
+              selectedGender
+          ) &&
+          (
+            !selectedStyle ||
+            getVoiceStyle(
+              voice
+            ) ===
+              selectedStyle
+          )
+      );
+
+    }, [
+      voices,
+      selectedLanguage,
+      selectedCountry,
+      selectedAccent,
+      selectedGender,
+      selectedStyle,
+    ]);
+
+
+  useEffect(() => {
+
+    if (
+      filteredVoices.length === 0
+    ) {
+      setSelectedVoice("");
+      return;
+    }
+
+    const exists =
+      filteredVoices.some(
+        (voice) =>
+          voice.tts_voice ===
+          selectedVoice
+      );
+
+    if (!exists) {
+      setSelectedVoice(
+        filteredVoices[0]
+          .tts_voice
+      );
+    }
+
+  }, [
+    filteredVoices,
+    selectedVoice,
+  ]);
+
+
+  /* =======================================================
+     VOICE FILTER HANDLERS
+  ======================================================= */
+
+  function handleLanguageChange(
+    value
+  ) {
+
+    setSelectedLanguage(
+      value
+    );
+
+    setSelectedCountry("");
+
+    setSelectedAccent("");
+  }
+
+
+  function handleCountryChange(
+    value
+  ) {
+
+    setSelectedCountry(
+      value
+    );
+
+    setSelectedAccent("");
+  }
+
+
+  /* =======================================================
+     AI VOICE PREVIEW
+  ======================================================= */
+
+  async function handlePreviewVoice() {
+
+    if (!selectedVoice) {
+      setError(
+        "Please select a voice."
+      );
+
+      return;
+    }
+
+    setPreviewingVoice(
+      true
+    );
+
+    setError("");
+
+    try {
+
+      const data =
+        await generateVoice({
+          text:
+            "Hello, this is Aloko. This is a preview of the selected AI voice.",
+
+          voice:
+            selectedVoice,
+        });
+
+      if (!data.audio_url) {
+        throw new Error(
+          "Preview audio was not returned."
+        );
+      }
+
+      setPreviewAudioUrl(
+        `${API_BASE_URL}${data.audio_url}`
+      );
+
+    } catch (err) {
+
+      setError(
+        err.message
+      );
+
+    } finally {
+
+      setPreviewingVoice(
+        false
+      );
+    }
+  }
+
+
+  /* =======================================================
+     GENERATE VOICE
+  ======================================================= */
+
+  async function handleGenerateVoice() {
+
+    if (!script.trim()) {
+      setError(
+        "Please enter a script."
+      );
+
+      return;
+    }
+
+    if (!selectedVoice) {
+      setError(
+        "Please select a voice."
+      );
+
+      return;
+    }
+
+    setGenerating(
+      true
+    );
+
+    setError("");
+
+    setResult(null);
+
+    try {
+
+      const data =
+        await generateVoice({
+          text:
+            script,
+
+          voice:
+            selectedVoice,
+        });
+
+      setResult(
+        data
+      );
+
+    } catch (err) {
+
+      setError(
+        err.message
+      );
+
+    } finally {
+
+      setGenerating(
+        false
+      );
+    }
+  }
+
+
+  /* =======================================================
+     CREATE IMAGE AVATAR
+  ======================================================= */
+
+  async function handleCreateAvatar() {
+
+    setError("");
+
+    if (!avatarType) {
+
+      setError(
+        "Choose Image Avatar or Video Avatar."
+      );
+
+      return;
+    }
+
+    if (
+      avatarType === "video"
+    ) {
+
+      setError(
+        "Video Avatar is coming next. Image Avatar creation is available now."
+      );
+
+      return;
+    }
+
+    if (!avatarImage) {
+
+      setError(
+        "Please select an image."
+      );
+
+      return;
+    }
+
+    setAvatarUploading(
+      true
+    );
+
+    try {
+
+      const data =
+        await uploadAvatar({
+          name:
+            avatarName.trim() ||
+            "My Avatar",
+
+          image:
+            avatarImage,
+        });
+
+      const created = {
+        id:
+          data.id,
+
+        name:
+          data.name,
+
+        image_url:
+          data.image_url,
+      };
+
+      setAvatars(
+        previous => [
+          created,
+          ...previous,
+        ]
+      );
+
+      setSelectedAvatarId(
+        created.id
+      );
+
+      localStorage.setItem(
+        "aloko_onboarding_pending",
+        "true"
+      );
+
+      setPage(
+        "voice-test"
+      );
+
+      setAvatarName("");
+
+      setAvatarImage(
+        null
+      );
+
+    } catch (err) {
+
+      setError(
+        err.message
+      );
+
+    } finally {
+
+      setAvatarUploading(
+        false
+      );
+    }
+  }
+
+
+  /* =======================================================
+     USER VOICE TEST
+  ======================================================= */
+
+  async function startVoiceTest() {
+
+    setError("");
+
+    try {
+
+      const stream =
+        await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+
+      const recorder =
+        new MediaRecorder(
+          stream
+        );
+
+      voiceChunksRef.current = [];
+
+      recorder.ondataavailable =
+        (event) => {
+
+          if (
+            event.data.size > 0
+          ) {
+            voiceChunksRef.current.push(
+              event.data
+            );
+          }
+        };
+
+      recorder.onstop =
+        () => {
+
+          const blob =
+            new Blob(
+              voiceChunksRef.current,
+              {
+                type:
+                  recorder.mimeType ||
+                  "audio/webm",
+              }
+            );
+
+          const url =
+            URL.createObjectURL(
+              blob
+            );
+
+          setVoiceTestAudioUrl(
+            url
+          );
+
+          setPersonalVoiceRecordingBlob(
+            blob
+          );
+
+          stream
+            .getTracks()
+            .forEach(
+              track =>
+                track.stop()
+            );
+        };
+
+      voiceRecorderRef.current =
+        recorder;
+
+      recorder.start();
+
+      setVoiceRecording(
+        true
+      );
+
+      setVoiceRecordingSeconds(
+        0
+      );
+
+      voiceTimerRef.current =
+        setInterval(
+          () => {
+
+            setVoiceRecordingSeconds(
+              value =>
+                value + 1
+            );
+
+          },
+          1000
+        );
+
+    } catch {
+
+      setError(
+        "Microphone access was denied or unavailable."
+      );
+    }
+  }
+
+
+  async function saveRecordedPersonalVoice() {
+    if (!personalVoiceRecordingBlob) {
+      setError("Record your voice first.");
+      return;
+    }
+
+    setPersonalVoiceUploading(true);
+    setError("");
+
+    try {
+      const mimeType = personalVoiceRecordingBlob.type || "audio/webm";
+      const extension = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "m4a" : "webm";
+      const audioFile = new File(
+        [personalVoiceRecordingBlob],
+        `aloko-personal-voice.${extension}`,
+        { type: mimeType }
+      );
+
+      const data = await uploadVoice({
+        name: personalVoiceName.trim() || "My Personal Voice",
+        audio: audioFile,
+      });
+
+      await loadCreatorVoices();
+
+      const savedVoiceId = data?.voice_id || data?.id;
+      if (savedVoiceId) {
+        setCreatorSelectedPersonalVoice(String(savedVoiceId));
+        setAiDirectorPersonalVoice(String(savedVoiceId));
+      }
+
+      setAiDirectorVoiceMode("personal");
+      setPage("home");
+    } catch (err) {
+      setError(err.message || "Failed to save your personal voice.");
+    } finally {
+      setPersonalVoiceUploading(false);
+    }
+  }
+
+  function stopVoiceTest() {
+
+    const recorder =
+      voiceRecorderRef.current;
+
+    if (
+      recorder &&
+      recorder.state !==
+        "inactive"
+    ) {
+      recorder.stop();
+    }
+
+    setVoiceRecording(
+      false
+    );
+
+    if (
+      voiceTimerRef.current
+    ) {
+
+      clearInterval(
+        voiceTimerRef.current
+      );
+
+      voiceTimerRef.current =
+        null;
+    }
+  }
+
+
+  /* =======================================================
+     GENERATE CREATOR VIDEO
+  ======================================================= */
+
+  async function handleGenerateVideo() {
+
+    if (!selectedAvatarId) {
+
+      setPage(
+        "avatar"
+      );
+
+      setError(
+        "Create an avatar first."
+      );
+
+      return;
+    }
+
+    if (!script.trim()) {
+
+      setError(
+        "Please enter a script."
+      );
+
+      return;
+    }
+
+    if (!selectedVoice) {
+
+      setError(
+        "Please select a voice."
+      );
+
+      return;
+    }
+
+    setGenerating(
+      true
+    );
+
+    setError("");
+
+    setResult(null);
+
+    try {
+
+      const data =
+        await generateVideo({
+
+          avatar_id:
+            Number(
+              selectedAvatarId
+            ),
+
+          voice:
+            selectedVoice,
+
+          script:
+            script,
+        });
+
+      setResult(
+        data
+      );
+
+    } catch (err) {
+
+      setError(
+        err.message
+      );
+
+    } finally {
+
+      setGenerating(
+        false
+      );
+    }
+  }
+
+
+  /* =======================================================
+     TRANSLATOR DATA
+  ======================================================= */
+
+  const translatorLanguageLocales =
+    useMemo(() => {
+
+      return translatorLocales.filter(
+        locale =>
+          locale.language ===
+          translatorTargetLanguage
+      );
+
+    }, [
+      translatorLocales,
+      translatorTargetLanguage,
+    ]);
+
+
+  const translatorCountries =
+    useMemo(() => {
+
+      return [
+        ...new Set(
+          translatorLanguageLocales
+            .map(
+              locale =>
+                locale.country
+            )
+            .filter(Boolean)
+        ),
+      ].sort();
+
+    }, [
+      translatorLanguageLocales,
+    ]);
+
+
+  const translatorAccents =
+    useMemo(() => {
+
+      return [
+        ...new Set(
+          translatorLanguageLocales
+            .filter(
+              locale =>
+                !translatorCountry ||
+                locale.country ===
+                  translatorCountry
+            )
+            .map(
+              locale =>
+                locale.accent
+            )
+            .filter(Boolean)
+        ),
+      ].sort();
+
+    }, [
+      translatorLanguageLocales,
+      translatorCountry,
+    ]);
+
+
+  const translatorVoices =
+    useMemo(() => {
+
+      return voices.filter(
+        voice =>
+          voice.language ===
+            translatorTargetLanguage &&
+          (
+            !translatorCountry ||
+            voice.country ===
+              translatorCountry
+          ) &&
+          (
+            !translatorAccent ||
+            voice.accent ===
+              translatorAccent
+          ) &&
+          (
+            !translatorGender ||
+            voice.gender ===
+              translatorGender
+          )
+      );
+
+    }, [
+      voices,
+      translatorTargetLanguage,
+      translatorCountry,
+      translatorAccent,
+      translatorGender,
+    ]);
+
+
+  useEffect(() => {
+
+    if (
+      translatorVoices.length ===
+      0
+    ) {
+      setTranslatorVoice("");
+      return;
+    }
+
+    const exists =
+      translatorVoices.some(
+        voice =>
+          voice.tts_voice ===
+          translatorVoice
+      );
+
+    if (!exists) {
+
+      setTranslatorVoice(
+        translatorVoices[0]
+          .tts_voice
+      );
+    }
+
+  }, [
+    translatorVoices,
+    translatorVoice,
+  ]);
+
+
+  function clearTranslatorPreview() {
+
+    setTranslatorPreviewAudioUrl(
+      ""
+    );
+  }
+
+
+  /* =======================================================
+     TRANSLATOR RECORDING
+  ======================================================= */
+
+  async function startTranslatorRecording() {
+
+    setTranslatorError("");
+
+    try {
+
+      const stream =
+        await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+
+      const recorder =
+        new MediaRecorder(
+          stream
+        );
+
+      recordingChunksRef.current =
+        [];
+
+      recorder.ondataavailable =
+        (event) => {
+
+          if (
+            event.data.size > 0
+          ) {
+
+            recordingChunksRef.current.push(
+              event.data
+            );
+          }
+        };
+
+      recorder.onstop =
+        () => {
+
+          const blob =
+            new Blob(
+              recordingChunksRef.current,
+              {
+                type:
+                  recorder.mimeType ||
+                  "audio/webm",
+              }
+            );
+
+          const file =
+            new File(
+              [blob],
+              "aloko-recording.webm",
+              {
+                type:
+                  recorder.mimeType ||
+                  "audio/webm",
+              }
+            );
+
+          setTranslatorFile(
+            file
+          );
+
+          stream
+            .getTracks()
+            .forEach(
+              track =>
+                track.stop()
+            );
+        };
+
+      mediaRecorderRef.current =
+        recorder;
+
+      recorder.start();
+
+      setRecording(
+        true
+      );
+
+      setRecordingSeconds(
+        0
+      );
+
+      recordingTimerRef.current =
+        setInterval(
+          () => {
+
+            setRecordingSeconds(
+              value =>
+                value + 1
+            );
+
+          },
+          1000
+        );
+
+    } catch {
+
+      setTranslatorError(
+        "Microphone access was denied or unavailable."
+      );
+    }
+  }
+
+
+  function stopTranslatorRecording() {
+
+    const recorder =
+      mediaRecorderRef.current;
+
+    if (
+      recorder &&
+      recorder.state !==
+        "inactive"
+    ) {
+
+      recorder.stop();
+    }
+
+    setRecording(
+      false
+    );
+
+    if (
+      recordingTimerRef.current
+    ) {
+
+      clearInterval(
+        recordingTimerRef.current
+      );
+
+      recordingTimerRef.current =
+        null;
+    }
+  }
+
+
+  /* =======================================================
+     TRANSLATOR PREVIEW
+  ======================================================= */
+
+  async function handleTranslatorPreview() {
+
+    if (!translatorVoice) {
+
+      setTranslatorError(
+        "Please select a voice."
+      );
+
+      return;
+    }
+
+    setTranslatorPreviewLoading(
+      true
+    );
+
+    setTranslatorError("");
+
+    try {
+
+      const data =
+        await generateVoice({
+
+          text:
+            "Hello, this is an Aloko voice preview.",
+
+          voice:
+            translatorVoice,
+        });
+
+      if (!data.audio_url) {
+
+        throw new Error(
+          "Preview audio was not returned."
+        );
+      }
+
+      setTranslatorPreviewAudioUrl(
+        `${API_BASE_URL}${data.audio_url}`
+      );
+
+    } catch (err) {
+
+      setTranslatorError(
+        err.message
+      );
+
+    } finally {
+
+      setTranslatorPreviewLoading(
+        false
+      );
+    }
+  }
+
+
+  /* =======================================================
+     TRANSLATE
+  ======================================================= */
+
+  async function handleTranslateVoice() {
+
+    if (!translatorFile) {
+
+      setTranslatorError(
+        "Please record or upload audio."
+      );
+
+      return;
+    }
+
+    if (!translatorVoice) {
+
+      setTranslatorError(
+        "Please select a target voice."
+      );
+
+      return;
+    }
+
+    setTranslatorLoading(
+      true
+    );
+
+    setTranslatorError("");
+
+    setTranslatorResult(
+      null
+    );
+
+    try {
+
+      const data =
+        await translateVoice({
+
+          audio:
+            translatorFile,
+
+          toLanguage:
+            translatorTargetLanguage,
+
+          voice:
+            translatorVoice,
+        });
+
+      setTranslatorResult(
+        data
+      );
+
+    } catch (err) {
+
+      setTranslatorError(
+        err.message
+      );
+
+    } finally {
+
+      setTranslatorLoading(
+        false
+      );
+    }
+  }
+
+
+  /* =======================================================
+     AI DIRECTOR
+  ======================================================= */
+  async function handleAIDirectorGenerate() {
+    const idea = aiDirectorIdea.trim();
+
+    if (!idea) {
+      setAiDirectorError("Tell Aloko what video you want to create.");
+      return;
+    }
+
+    if (aiDirectorVoiceMode === "personal" && !aiDirectorPersonalVoice) {
+      setAiDirectorError("Select your personal voice first.");
+      return;
+    }
+
+    if (aiDirectorVoiceMode === "builtin" && !aiDirectorBuiltinVoice) {
+      setAiDirectorError("Select an Aloko voice first.");
+      return;
+    }
+
+    if (aiDirectorAvatarMode === "selected" && !aiDirectorAvatarId) {
+      setAiDirectorError("Select an avatar first.");
+      return;
+    }
+
+    setAiDirectorLoading(true);
+    setAiDirectorError("");
+    setAiDirectorResult(null);
+    setError("");
+
+    try {
+      const data = await generateAIDirector({
+        idea,
+        voice_mode: aiDirectorVoiceMode,
+        voice_id:
+          aiDirectorVoiceMode === "personal" && aiDirectorPersonalVoice
+            ? Number(aiDirectorPersonalVoice)
+            : null,
+        builtin_voice:
+          aiDirectorVoiceMode === "builtin"
+            ? aiDirectorBuiltinVoice
+            : null,
+        avatar_mode: aiDirectorAvatarMode,
+        avatar_id:
+          aiDirectorAvatarMode === "selected" && aiDirectorAvatarId
+            ? Number(aiDirectorAvatarId)
+            : null,
+      });
+
+      setAiDirectorResult(data);
+
+      if (data?.project?.id) {
+        await loadCreatorProjects();
+        const loadedProject = await loadCreatorProject(data.project.id);
+        const firstScene = loadedProject?.scenes?.[0];
+
+        if (firstScene?.avatar_id) {
+          setSelectedAvatarId(String(firstScene.avatar_id));
+          setAiDirectorAvatarId(String(firstScene.avatar_id));
+        }
+
+        if (firstScene?.voice_id) {
+          setCreatorVoiceType("personal");
+          setCreatorSelectedPersonalVoice(String(firstScene.voice_id));
+        } else if (firstScene?.voice) {
+          setCreatorVoiceType("built_in");
+          setSelectedVoice(firstScene.voice);
+        }
+
+        setPage("video");
+      }
+    } catch (err) {
+      setAiDirectorError(
+        err.message || "AI Director failed to create the project."
+      );
+    } finally {
+      setAiDirectorLoading(false);
+    }
+  }
+
+  /* =======================================================
+     CREATOR STUDIO FUNCTIONS
+  ======================================================= */
+
+  async function loadCreatorProjects() {
+    try {
+      const data = await getMyProjects();
+      const projects = Array.isArray(data) ? data : [];
+      setCreatorProjects(projects);
+      return projects;
+    } catch (err) {
+      setError(err.message || "Failed to load Creator projects.");
+      return [];
+    }
+  }
+
+  async function loadCreatorProject(projectId) {
+    setCreatorLoading(true);
+    setError("");
+    try {
+      const data = await getProject(projectId);
+      setCreatorProject(data);
+      setCreatorScenes(data.scenes || []);
+      setCreatorProjectName(data.name || "My AI Video");
+      return data;
+    } catch (err) {
+      setError(err.message || "Failed to load Creator project.");
+      return null;
+    } finally {
+      setCreatorLoading(false);
+    }
+  }
+
+  async function ensureCreatorProject() {
+    if (creatorProject) return creatorProject;
+    setCreatorLoading(true);
+    setError("");
+    try {
+      const projects = creatorProjects.length ? creatorProjects : await loadCreatorProjects();
+      if (projects.length) return await loadCreatorProject(projects[0].id);
+      const project = await createProject({ name: creatorProjectName.trim() || "My AI Video" });
+      setCreatorProject(project);
+      setCreatorScenes([]);
+      await loadCreatorProjects();
+      return project;
+    } catch (err) {
+      setError(err.message || "Failed to open Creator Studio.");
+      return null;
+    } finally {
+      setCreatorLoading(false);
+    }
+  }
+
+  async function loadCreatorVoices() {
+    try {
+      const data = await getMyVoices();
+      const loaded = Array.isArray(data) ? data : data?.voices || [];
+      setCreatorMyVoices(loaded);
+      const ready = loaded.find(v => v.voice_type === "custom" && v.status === "ready" && v.provider_voice_id);
+      if (ready) {
+        if (!creatorSelectedPersonalVoice) {
+          setCreatorSelectedPersonalVoice(String(ready.id));
+        }
+        if (!aiDirectorPersonalVoice) {
+          setAiDirectorPersonalVoice(String(ready.id));
+        }
+      }
+    } catch {
+      setCreatorMyVoices([]);
+    }
+  }
+
+  async function createNewCreatorProject() {
+    setCreatorSaving(true);
+    setError("");
+    try {
+      const project = await createProject({ name: creatorProjectName.trim() || "My AI Video" });
+      setCreatorProject(project);
+      setCreatorScenes([]);
+      setCreatorRenderResult(null);
+      await loadCreatorProjects();
+    } catch (err) {
+      setError(err.message || "Failed to create project.");
+    } finally {
+      setCreatorSaving(false);
+    }
+  }
+
+  async function addCreatorScene() {
+    if (!creatorProject) {
+      setError("Create or open a project first.");
+      return;
+    }
+    setCreatorSaving(true);
+    setError("");
+    try {
+      const scene = await createScene(creatorProject.id, {
+        script: "",
+        avatar_id: selectedAvatarId ? Number(selectedAvatarId) : null,
+        voice_id: creatorVoiceType === "personal" && creatorSelectedPersonalVoice ? Number(creatorSelectedPersonalVoice) : null,
+        captions_enabled: true,
+      });
+      setCreatorScenes(previous => [...previous, scene]);
+    } catch (err) {
+      setError(err.message || "Failed to add scene.");
+    } finally {
+      setCreatorSaving(false);
+    }
+  }
+
+  async function saveCreatorScene(sceneId, updates) {
+    if (!creatorProject) return;
+    try {
+      const updated = await updateScene(creatorProject.id, sceneId, updates);
+      setCreatorScenes(previous => previous.map(scene => scene.id === sceneId ? updated : scene));
+    } catch (err) {
+      setError(err.message || "Failed to save scene.");
+    }
+  }
+
+  async function removeCreatorScene(sceneId) {
+    if (!creatorProject) return;
+    setCreatorSaving(true);
+    setError("");
+    try {
+      await deleteScene(creatorProject.id, sceneId);
+      setCreatorScenes(previous => previous.filter(scene => scene.id !== sceneId));
+    } catch (err) {
+      setError(err.message || "Failed to delete scene.");
+    } finally {
+      setCreatorSaving(false);
+    }
+  }
+
+  async function handleCreatorRender() {
+    if (!creatorProject) { setError("Create or open a project first."); return; }
+    if (!creatorScenes.length) { setError("Add at least one scene."); return; }
+    const empty = creatorScenes.find(scene => !scene.script || !scene.script.trim());
+    if (empty) { setError(`Scene ${empty.scene_order} needs a script.`); return; }
+    if (!selectedAvatarId) { setError("Select an avatar first."); return; }
+    if (creatorVoiceType === "personal" && !creatorSelectedPersonalVoice) { setError("Select a ready personal voice first."); return; }
+    setCreatorRenderLoading(true);
+    setCreatorRenderError("");
+    setError("");
+    setCreatorRenderResult(null);
+    try {
+      const data = await renderProject(creatorProject.id);
+      setCreatorRenderResult(data);
+    } catch (err) {
+      setCreatorRenderError(err.message || "Failed to render project.");
+    } finally {
+      setCreatorRenderLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!user) return;
+    loadCreatorVoices();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || page !== "video") return;
+    ensureCreatorProject();
+  }, [user, page]);
+
+
+  /* =======================================================
+     NAVBAR
+  ======================================================= */
+
+  function renderNavbar(active) {
+
     return (
-      <div className="app">
-        {renderNavbar("video")}
+      <header className="navbar">
+
+        <div
+          className="logo clickable"
+          onClick={() =>
+            setPage(
+              "home"
+            )
+          }
+          >
+          Aloko
+        </div>
+
+
+        <nav>
+
+          <button
+            className={
+              active === "home"
+                ? "nav-active"
+                : ""
+            }
+            onClick={() =>
+              setPage(
+                "home"
+              )
+            }
+          >
+            Home
+          </button>
+
+
+          <button
+            className={
+              active === "voice"
+                ? "nav-active"
+                : ""
+            }
+            onClick={() =>
+              setPage(
+                "voice"
+              )
+            }
+          >
+            AI Voice
+          </button>
+
+
+          <button
+            className={
+              active === "translator"
+                ? "nav-active"
+                : ""
+            }
+            onClick={() =>
+              setPage(
+                "translator"
+              )
+            }
+          >
+            Voice Translator
+          </button>
+
+
+          <button
+            className={
+              active === "video"
+                ? "nav-active"
+                : ""
+            }
+            onClick={() =>
+              setPage(
+                "video"
+              )
+            }
+          >
+            Creator Video
+          </button>
+
+
+          <button
+            className={
+              active === "avatar"
+                ? "nav-active"
+                : ""
+            }
+            onClick={() =>
+              setPage(
+                "avatar"
+              )
+            }
+          >
+            Avatar
+          </button>
+
+
+          <button
+            className={active === "business" ? "nav-active" : ""}
+            type="button"
+            onClick={() => setPage("business")}
+          >
+            Business
+          </button>
+
+
+          <button
+            className={active === "university-admin" ? "nav-active" : ""}
+            type="button"
+            onClick={() => setPage("university-admin")}
+          >
+            University Admin
+          </button>
+
+          <button
+            className={active === "university-lecturer" ? "nav-active" : ""}
+            type="button"
+            onClick={() => openIndependentLecturer()}
+          >
+            Lecturer
+          </button>
+
+          <button
+            className={active === "university-student" ? "nav-active" : ""}
+            type="button"
+            onClick={() => setPage("university-student")}
+          >
+            Student
+          </button>
+
+          <button
+            className="coming-nav-item"
+            type="button"
+            disabled
+          >
+            AI Extract
+          </button>
+
+        </nav>
+
+
+        {user && (
+          <div
+            style={{
+              marginLeft:
+                "auto",
+
+              display:
+                "flex",
+
+              alignItems:
+                "center",
+
+              gap:
+                "10px",
+            }}
+          >
+
+            <span
+              style={{
+                fontSize:
+                  "12px",
+
+                opacity:
+                  0.75,
+              }}
+            >
+              {user.email}
+
+              {isFreeAccessEmail(
+                user.email
+              ) && (
+                <span
+                  style={{
+                    marginLeft:
+                      "7px",
+
+                    color:
+                      "#8d95ff",
+
+                    fontWeight:
+                      700,
+                  }}
+                >
+                  FREE
+                </span>
+              )}
+            </span>
+
+
+            <button
+              type="button"
+              onClick={
+                logout
+              }
+              style={{
+                padding:
+                  "8px 12px",
+
+                border:
+                  "1px solid #303542",
+
+                borderRadius:
+                  "8px",
+
+                background:
+                  "#11141b",
+
+                color:
+                  "white",
+
+                cursor:
+                  "pointer",
+              }}
+            >
+              Logout
+            </button>
+
+          </div>
+        )}
+
+      </header>
+    );
+  }
+
+
+
+  /* =======================================================
+     BUSINESS AI
+  ======================================================= */
+
+  if (page === "business") {
+    return <BusinessAIWorkspace onBack={() => setPage("home")} />;
+  }
+
+  /* =======================================================
+     UNIVERSITY AI ADMIN
+  ======================================================= */
+
+  if (page === "university-admin") {
+    return <UniversityAdmin onBack={() => setPage("home")} />;
+  }
+
+  if (page === "university-lecturer") {
+    if (lecturerOnboarding) return (
+      <div style={{minHeight:"100vh",padding:"40px 20px",display:"flex",justifyContent:"center",alignItems:"center"}}>
+        <div style={{width:"100%",maxWidth:"620px",padding:"32px",borderRadius:"20px",background:"var(--card-bg, #fff)",boxShadow:"0 10px 40px rgba(0,0,0,0.08)"}}>
+          <h1>Set up your Lecturer Workspace</h1>
+          <p>Complete your lecturer profile to create your private academic workspace.</p>
+          {lecturerOnboardingError && (
+            <div style={{marginBottom:"16px",padding:"12px",borderRadius:"10px",color:"#b91c1c",background:"#fee2e2"}}>{lecturerOnboardingError}</div>
+          )}
+          <div style={{display:"grid",gap:"14px"}}>
+            <input placeholder="First name *" value={lecturerForm.first_name} onChange={e => setLecturerForm({...lecturerForm, first_name:e.target.value})} />
+            <input placeholder="Middle name" value={lecturerForm.middle_name} onChange={e => setLecturerForm({...lecturerForm, middle_name:e.target.value})} />
+            <input placeholder="Last name *" value={lecturerForm.last_name} onChange={e => setLecturerForm({...lecturerForm, last_name:e.target.value})} />
+            <input placeholder="Academic specialization" value={lecturerForm.specialization} onChange={e => setLecturerForm({...lecturerForm, specialization:e.target.value})} />
+            <input placeholder="Phone number" value={lecturerForm.phone} onChange={e => setLecturerForm({...lecturerForm, phone:e.target.value})} />
+          </div>
+          <div style={{display:"flex",gap:"12px",marginTop:"22px"}}>
+            <button type="button" onClick={() => setLecturerOnboarding(false)}>Back</button>
+            <button type="button" onClick={submitLecturerOnboarding} disabled={lecturerOnboardingLoading}>
+              {lecturerOnboardingLoading ? "Creating workspace..." : "Create Lecturer Workspace"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+
+    return <LecturerDashboard onBack={() => setPage("home")} />;
+  }
+
+  if (page === "university-student") {
+    return <StudentDashboard onBack={() => setPage("home")} />;
+  }
+
+  /* =======================================================
+     AUTH SCREEN
+  ======================================================= */
+
+  if (!user) {
+
+    return (
+      <div
+        className="app"
+        style={{
+          minHeight:
+            "100vh",
+
+          display:
+            "flex",
+
+          flexDirection:
+            "column",
+        }}
+      >
+
+        <header className="navbar">
+
+          <div className="logo">
+            Aloko
+          </div>
+
+        </header>
+
 
         <main
           style={{
-            maxWidth: "1250px",
-            margin: "0 auto",
-            padding: "35px 20px 70px",
+            flex:
+              1,
+
+            display:
+              "flex",
+
+            justifyContent:
+              "center",
+
+            alignItems:
+              "center",
+
+            padding:
+              "30px 20px",
           }}
         >
-          <button
-            className="back-button clickable"
-            onClick={() => setPage("home")}
-          >
-            Back
-          </button>
 
-          <div
+          <section
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-end",
-              gap: "20px",
-              flexWrap: "wrap",
-              marginBottom: "30px",
+              width:
+                "100%",
+
+              maxWidth:
+                "460px",
+
+              padding:
+                "32px",
+
+              border:
+                "1px solid #282d38",
+
+              borderRadius:
+                "22px",
+
+              background:
+                "#101219",
             }}
           >
-            <div>
-              <p className="eyebrow">ALOKO CREATOR STUDIO</p>
 
-              <h1>Create your AI video</h1>
-
-              <p>
-                Build your video scene by scene. Each scene can have
-                its own avatar, voice, script and visual settings.
-              </p>
-            </div>
-
-            <button
-              className="generate-button"
-              onClick={createNewCreatorProject}
-              disabled={creatorSaving || creatorLoading}
-            >
-              + New Project
-            </button>
-          </div>
-
-          {error && <div className="error">{error}</div>}
-
-          {creatorLoading ? (
-            <section
-              className="coming-card"
-              style={{
-                textAlign: "center",
-                padding: "60px 25px",
-              }}
-            >
-              <div className="spinner"></div>
-
-              <h2>Opening Creator Studio...</h2>
-
-              <p>
-                Loading your projects and scenes.
-              </p>
-            </section>
-          ) : (
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "minmax(0, 1.4fr) minmax(320px, 0.8fr)",
-                gap: "25px",
-                alignItems: "start",
+                textAlign:
+                  "center",
               }}
             >
-              <section
-                className="creator-panel"
-                style={{ padding: "25px" }}
-              >
 
-                {/* PROJECT */}
+              <AlokoAssistant
+                size={90}
+              />
+
+              <p className="eyebrow">
+                AI CREATION PLATFORM
+              </p>
+
+              <h1>
+                {
+                  authStep ===
+                  "verification"
+                    ? "Verify your email"
+                    : authMode ===
+                      "login"
+                      ? "Welcome back"
+                      : "Create your Aloko account"
+                }
+              </h1>
+
+              <p>
+                {
+                  authStep ===
+                  "verification"
+                    ? `Enter the 6-digit code for ${authEmail}`
+                    : authMode ===
+                      "login"
+                      ? "Sign in to continue creating with Aloko."
+                      : "Create an account to start using Aloko."
+                }
+              </p>
+
+            </div>
+
+
+            {authError && (
+              <div className="error">
+                {authError}
+              </div>
+            )}
+
+
+            {authStep ===
+            "verification" ? (
+
+              <>
+
+                <form
+                  onSubmit={
+                    handleVerifyEmail
+                  }
+                >
+
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={
+                      verificationCode
+                    }
+                    onChange={
+                      event =>
+                        setVerificationCode(
+                          event.target.value.replace(
+                            /\D/g,
+                            ""
+                          )
+                        )
+                    }
+                    placeholder="123456"
+                    style={{
+                      width:
+                        "100%",
+
+                      boxSizing:
+                        "border-box",
+
+                      textAlign:
+                        "center",
+
+                      letterSpacing:
+                        "8px",
+
+                      fontSize:
+                        "24px",
+
+                      marginTop:
+                        "15px",
+                    }}
+                  />
+
+
+                  <button
+                    className="generate-button"
+                    type="submit"
+                    disabled={
+                      authLoading
+                    }
+                    style={{
+                      width:
+                        "100%",
+
+                      marginTop:
+                        "15px",
+                    }}
+                  >
+                    {authLoading
+                      ? "Verifying..."
+                      : "Verify Email"}
+                  </button>
+
+                </form>
+
+
+                <button
+                  type="button"
+                  onClick={
+                    handleResendVerification
+                  }
+                  style={{
+                    display:
+                      "block",
+
+                    margin:
+                      "18px auto 0",
+
+                    border:
+                      "none",
+
+                    background:
+                      "none",
+
+                    color:
+                      "#8d95ff",
+
+                    cursor:
+                      "pointer",
+                  }}
+                >
+                  Resend verification code
+                </button>
+
+              </>
+
+            ) : authMode === "forgot" ? (
+
+              <>
+
+                <form
+                  onSubmit={
+                    handleForgotPassword
+                  }
+                >
+
+                  <label>
+                    Email
+                  </label>
+
+                  <input
+                    type="email"
+                    value={
+                      authEmail
+                    }
+                    onChange={
+                      event =>
+                        setAuthEmail(
+                          event.target.value
+                        )
+                    }
+                    required
+                    placeholder="you@example.com"
+                    style={{
+                      width:
+                        "100%",
+
+                      boxSizing:
+                        "border-box",
+
+                      marginBottom:
+                        "18px",
+                    }}
+                  />
+
+                  <button
+                    className="generate-button"
+                    type="submit"
+                    disabled={
+                      authLoading
+                    }
+                    style={{
+                      width:
+                        "100%",
+                    }}
+                  >
+                    {authLoading
+                      ? "Sending..."
+                      : "Send Reset Link"}
+                  </button>
+
+                </form>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode("login");
+                    setAuthError("");
+                    setResetSuccess("");
+                  }}
+                  style={{
+                    display:
+                      "block",
+
+                    margin:
+                      "18px auto 0",
+
+                    border:
+                      "none",
+
+                    background:
+                      "none",
+
+                    color:
+                      "#8d95ff",
+
+                    cursor:
+                      "pointer",
+                  }}
+                >
+                  Back to sign in
+                </button>
+
+              </>
+
+            ) : authMode === "reset" ? (
+
+              <>
+
+                <form
+                  onSubmit={
+                    handleResetPassword
+                  }
+                >
+
+                  <label>
+                    New Password
+                  </label>
+
+                  <input
+                    type="password"
+                    value={
+                      resetPasswordValue
+                    }
+                    onChange={
+                      event =>
+                        setResetPasswordValue(
+                          event.target.value
+                        )
+                    }
+                    required
+                    minLength={6}
+                    placeholder="New password"
+                    style={{
+                      width:
+                        "100%",
+
+                      boxSizing:
+                        "border-box",
+
+                      marginBottom:
+                        "15px",
+                    }}
+                  />
+
+                  <label>
+                    Confirm Password
+                  </label>
+
+                  <input
+                    type="password"
+                    value={
+                      resetPasswordConfirm
+                    }
+                    onChange={
+                      event =>
+                        setResetPasswordConfirm(
+                          event.target.value
+                        )
+                    }
+                    required
+                    minLength={6}
+                    placeholder="Confirm new password"
+                    style={{
+                      width:
+                        "100%",
+
+                      boxSizing:
+                        "border-box",
+
+                      marginBottom:
+                        "18px",
+                    }}
+                  />
+
+                  <button
+                    className="generate-button"
+                    type="submit"
+                    disabled={
+                      authLoading
+                    }
+                    style={{
+                      width:
+                        "100%",
+                    }}
+                  >
+                    {authLoading
+                      ? "Resetting..."
+                      : "Reset Password"}
+                  </button>
+
+                </form>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode("login");
+                    setAuthError("");
+                    setResetSuccess("");
+                  }}
+                  style={{
+                    display:
+                      "block",
+
+                    margin:
+                      "18px auto 0",
+
+                    border:
+                      "none",
+
+                    background:
+                      "none",
+
+                    color:
+                      "#8d95ff",
+
+                    cursor:
+                      "pointer",
+                  }}
+                >
+                  Back to sign in
+                </button>
+
+              </>
+
+            ) : (
+
+              <>
+
+                <form
+                  onSubmit={
+                    handleAuthSubmit
+                  }
+                >
+
+                  <label>
+                    Email
+                  </label>
+
+
+                  <input
+                    type="email"
+                    value={
+                      authEmail
+                    }
+                    onChange={
+                      event =>
+                        setAuthEmail(
+                          event.target.value
+                        )
+                    }
+                    required
+                    placeholder="you@example.com"
+                    style={{
+                      width:
+                        "100%",
+
+                      boxSizing:
+                        "border-box",
+
+                      marginBottom:
+                        "15px",
+                    }}
+                  />
+
+
+                  <label>
+                    Password
+                  </label>
+
+
+                  <input
+                    type="password"
+                    value={
+                      authPassword
+                    }
+                    onChange={
+                      event =>
+                        setAuthPassword(
+                          event.target.value
+                        )
+                    }
+                    required
+                    placeholder="Password"
+                    style={{
+                      width:
+                        "100%",
+
+                      boxSizing:
+                        "border-box",
+
+                      marginBottom:
+                        "18px",
+                    }}
+                  />
+
+                  {authMode === "login" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode("forgot");
+                        setAuthError("");
+                        setResetSuccess("");
+                      }}
+                      style={{
+                        display:
+                          "block",
+
+                        margin:
+                          "0 auto 18px",
+
+                        border:
+                          "none",
+
+                        background:
+                          "none",
+
+                        color:
+                          "#8d95ff",
+
+                        cursor:
+                          "pointer",
+
+                        fontWeight:
+                          600,
+                      }}
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+
+
+
+                  <button
+                    className="generate-button"
+                    type="submit"
+                    disabled={
+                      authLoading
+                    }
+                    style={{
+                      width:
+                        "100%",
+                    }}
+                  >
+                    {authLoading
+                      ? "Please wait..."
+                      : authMode ===
+                        "login"
+                        ? "Sign In"
+                        : "Create Account"}
+                  </button>
+
+                </form>
+
 
                 <div
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: "15px",
-                    marginBottom: "25px",
-                    flexWrap: "wrap",
+                    textAlign:
+                      "center",
+
+                    marginTop:
+                      "20px",
                   }}
                 >
-                  <div>
-                    <span className="result-label">
-                      PROJECT
-                    </span>
 
-                    <h2 style={{ margin: "5px 0 0" }}>
-                      {creatorProject?.name || "My AI Video"}
-                    </h2>
+                  {authMode ===
+                  "login" ? (
+
+                    <p>
+                      Don't have an
+                      account?{" "}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          switchAuthMode(
+                            "signup"
+                          )
+                        }
+                        style={{
+                          border:
+                            "none",
+
+                          background:
+                            "none",
+
+                          color:
+                            "#8d95ff",
+
+                          cursor:
+                            "pointer",
+
+                          fontWeight:
+                            600,
+                        }}
+                      >
+                        Sign up
+                      </button>
+                    </p>
+
+                  ) : (
+
+                    <p>
+                      Already have an
+                      account?{" "}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          switchAuthMode(
+                            "login"
+                          )
+                        }
+                        style={{
+                          border:
+                            "none",
+
+                          background:
+                            "none",
+
+                          color:
+                            "#8d95ff",
+
+                          cursor:
+                            "pointer",
+
+                          fontWeight:
+                            600,
+                        }}
+                      >
+                        Sign in
+                      </button>
+                    </p>
+
+                  )}
+
+                </div>
+
+              </>
+
+            )}
+
+          </section>
+
+        </main>
+
+      </div>
+    );
+  }
+
+
+  /* =======================================================
+     WELCOME
+  ======================================================= */
+
+  if (
+    page === "welcome"
+  ) {
+
+    return (
+      <div className="app">
+
+        {renderNavbar(
+          "home"
+        )}
+
+
+        <main
+          style={{
+            maxWidth:
+              "1000px",
+
+            margin:
+              "0 auto",
+
+            padding:
+              "60px 20px",
+          }}
+        >
+
+          <section
+            className="coming-card"
+            style={{
+              textAlign:
+                "center",
+            }}
+          >
+
+            <AlokoAssistant
+              size={130}
+            />
+
+            <p className="eyebrow">
+              WELCOME TO ALOKO
+            </p>
+
+            <h1>
+              Hi, this is Aloko 
+            </h1>
+
+            <p
+              style={{
+                maxWidth:
+                  "650px",
+
+                margin:
+                  "0 auto 30px",
+              }}
+            >
+              Which service should I
+              help you with today?
+            </p>
+
+
+            <div className="feature-grid">
+
+              <button
+                className="feature-card"
+                onClick={() =>
+                  setPage(
+                    "avatar"
+                  )
+                }
+                style={{
+                  textAlign:
+                    "left",
+
+                  cursor:
+                    "pointer",
+                }}
+              >
+
+                <div className="feature-icon">
+                  
+                </div>
+
+                <h3>
+                  Create AI Video
+                </h3>
+
+                <p>
+                  First create your
+                  avatar, test your
+                  microphone, then
+                  make your Creator
+                  video.
+                </p>
+
+                <span className="feature-link">
+                  Start 
+                </span>
+
+              </button>
+
+
+              <button
+                className="feature-card"
+                onClick={() =>
+                  setPage(
+                    "voice"
+                  )
+                }
+                style={{
+                  textAlign:
+                    "left",
+
+                  cursor:
+                    "pointer",
+                }}
+              >
+
+                <div className="feature-icon">
+                  
+                </div>
+
+                <h3>
+                  AI Voice
+                </h3>
+
+                <p>
+                  Create natural speech
+                  with AI voices.
+                </p>
+
+                <span className="feature-link">
+                  Create voice 
+                </span>
+
+              </button>
+
+
+              <button
+                className="feature-card"
+                onClick={() =>
+                  setPage(
+                    "translator"
+                  )
+                }
+                style={{
+                  textAlign:
+                    "left",
+
+                  cursor:
+                    "pointer",
+                }}
+              >
+
+                <div className="feature-icon">
+                  
+                </div>
+
+                <h3>
+                  Voice Translator
+                </h3>
+
+                <p>
+                  Translate spoken voice
+                  into another language.
+                </p>
+
+                <span className="feature-link">
+                  Translate 
+                </span>
+
+              </button>
+
+
+              <button
+                className="feature-card business-card"
+                type="button"
+                onClick={() => setPage("business")}
+                style={{ textAlign: "left", cursor: "pointer" }}
+              >
+
+                <div className="feature-icon">
+                  ðŸ¢
+                </div>
+
+                <h3>
+                  Business AI Video
+                </h3>
+
+                <p>
+                  A separate advanced
+                  workspace for companies,
+                  brands, products,
+                  teams and multiple
+                  assets.
+                </p>
+
+                <span className="feature-link">
+                  Open Business AI 
+                </span>
+
+              </button>
+
+            </div>
+
+          </section>
+
+        </main>
+
+      </div>
+    );
+  }
+
+
+  /* =======================================================
+     AVATAR CREATION
+  ======================================================= */
+
+  if (
+    page === "avatar"
+  ) {
+
+    return (
+      <div className="app">
+
+        {renderNavbar(
+          "avatar"
+        )}
+
+
+        <main
+          style={{
+            maxWidth:
+              "1000px",
+
+            margin:
+              "0 auto",
+
+            padding:
+              "50px 20px",
+          }}
+        >
+
+          <div
+            style={{
+              display:
+                "flex",
+
+              gap:
+                "20px",
+
+              alignItems:
+                "center",
+
+              marginBottom:
+                "35px",
+
+              flexWrap:
+                "wrap",
+            }}
+          >
+
+            <AlokoAssistant />
+
+            <div>
+
+              <p className="eyebrow">
+                STEP 1  -  AVATAR
+              </p>
+
+              <h1>
+                Let's create your avatar
+              </h1>
+
+              <p>
+                Choose an Image Avatar
+                or the upcoming Video
+                Avatar system.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          {error && (
+            <div className="error">
+              {error}
+            </div>
+          )}
+
+
+          <div
+            className="feature-grid"
+            style={{
+              gridTemplateColumns:
+                "repeat(2, minmax(0, 1fr))",
+            }}
+          >
+
+            <button
+              type="button"
+              className="feature-card"
+              onClick={() =>
+                setAvatarType(
+                  "image"
+                )
+              }
+              style={{
+                textAlign:
+                  "left",
+
+                cursor:
+                  "pointer",
+
+                border:
+                  avatarType ===
+                  "image"
+                    ? "2px solid #8d95ff"
+                    : undefined,
+              }}
+            >
+
+              <div className="feature-icon">
+                
+              </div>
+
+              <h3>
+                Image Avatar
+              </h3>
+
+              <p>
+                Upload a clear photo
+                for talking-avatar
+                video generation.
+              </p>
+
+              <strong>
+                Available now
+              </strong>
+
+            </button>
+
+
+            <button
+              type="button"
+              className="feature-card"
+              onClick={() =>
+                setAvatarType(
+                  "video"
+                )
+              }
+              style={{
+                textAlign:
+                  "left",
+
+                cursor:
+                  "pointer",
+
+                border:
+                  avatarType ===
+                  "video"
+                    ? "2px solid #8d95ff"
+                    : undefined,
+              }}
+            >
+
+              <div className="feature-icon">
+                
+              </div>
+
+              <h3>
+                Video Avatar
+              </h3>
+
+              <p>
+                A more advanced avatar
+                pipeline for future
+                natural movement and
+                scene interaction.
+              </p>
+
+              <strong>
+                Coming next
+              </strong>
+
+            </button>
+
+          </div>
+
+
+          {avatarType ===
+            "image" && (
+
+            <section
+              className="coming-card"
+              style={{
+                marginTop:
+                  "30px",
+
+                textAlign:
+                  "left",
+              }}
+            >
+
+              <h2>
+                Create your Image Avatar
+              </h2>
+
+              <p>
+                Use a clear, well-lit
+                photograph where the
+                face is easy to see.
+              </p>
+
+
+              <label>
+                Avatar name
+              </label>
+
+
+              <input
+                value={
+                  avatarName
+                }
+                onChange={
+                  event =>
+                    setAvatarName(
+                      event.target.value
+                    )
+                }
+                placeholder="My Avatar"
+              />
+
+
+              <label
+                style={{
+                  display:
+                    "block",
+
+                  marginTop:
+                    "18px",
+                }}
+              >
+                Choose photo
+              </label>
+
+
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={
+                  event =>
+                    setAvatarImage(
+                      event.target.files?.[0] ||
+                      null
+                    )
+                }
+              />
+
+
+              {avatarImage && (
+                <p
+                  style={{
+                    marginTop:
+                      "10px",
+                  }}
+                >
+                  Selected:
+                  {" "}
+                  {avatarImage.name}
+                </p>
+              )}
+
+
+              <button
+                className="generate-button"
+                disabled={
+                  avatarUploading ||
+                  !avatarImage
+                }
+                onClick={
+                  handleCreateAvatar
+                }
+                style={{
+                  marginTop:
+                    "20px",
+                }}
+              >
+                {avatarUploading
+                  ? "Creating avatar..."
+                  : "Create My Avatar"}
+              </button>
+
+            </section>
+          )}
+
+
+          {avatarType ===
+            "video" && (
+
+            <div
+              className="error"
+              style={{
+                marginTop:
+                  "25px",
+              }}
+            >
+              Video Avatar has its own
+              processing pipeline and
+              will be added separately
+              from Image Avatar.
+            </div>
+
+          )}
+
+        </main>
+
+      </div>
+    );
+  }
+
+
+  /* =======================================================
+     VOICE TEST
+  ======================================================= */
+
+  if (
+    page === "voice-test"
+  ) {
+
+    return (
+      <div className="app">
+
+        {renderNavbar(
+          "avatar"
+        )}
+
+
+        <main
+          style={{
+            maxWidth:
+              "900px",
+
+            margin:
+              "0 auto",
+
+            padding:
+              "50px 20px",
+          }}
+        >
+
+          <section className="coming-card">
+
+            <div
+              style={{
+                display:
+                  "flex",
+
+                alignItems:
+                  "center",
+
+                gap:
+                  "20px",
+
+                flexWrap:
+                  "wrap",
+              }}
+            >
+
+              <AlokoAssistant />
+
+              <div>
+
+                <p className="eyebrow">
+                  STEP 2  -  PERSONAL VOICE
+                </p>
+
+                <h1>
+                  Create your personal voice
+                </h1>
+
+                <p>
+                  Record one clear voice sample. Aloko will save it to your account so it can become your personal voice when voice cloning is connected.
+                </p>
+
+              </div>
+
+            </div>
+
+
+            {error && (
+              <div className="error">
+                {error}
+              </div>
+            )}
+
+
+            <div
+              style={{
+                marginTop:
+                  "30px",
+
+                padding:
+                  "20px",
+
+                borderRadius:
+                  "14px",
+
+                background:
+                  "rgba(141,149,255,0.08)",
+              }}
+            >
+
+              <strong>
+                Read this:
+              </strong>
+
+              <p>
+                â€œHello, this is my voice
+                on Aloko. I am testing my
+                microphone before creating
+                my AI video.â€
+              </p>
+
+            </div>
+
+
+            <div style={{ marginTop: "20px" }}>
+              <label>Personal voice name</label>
+              <input
+                value={personalVoiceName}
+                onChange={event => setPersonalVoiceName(event.target.value)}
+                placeholder="My Personal Voice"
+                maxLength={100}
+                style={{ width: "100%", marginTop: "8px" }}
+              />
+            </div>
+
+
+            {!voiceRecording ? (
+
+              <button
+                className="generate-button"
+                onClick={
+                  startVoiceTest
+                }
+                style={{
+                  marginTop:
+                    "22px",
+                }}
+              >
+                ðŸŽ™ Start Voice Recording
+              </button>
+
+            ) : (
+
+              <button
+                className="generate-button"
+                onClick={
+                  stopVoiceTest
+                }
+                style={{
+                  marginTop:
+                    "22px",
+                }}
+              >
+                â¹ Stop Recording{" "}
+                {voiceRecordingSeconds}s
+              </button>
+
+            )}
+
+
+            {personalVoiceRecordingBlob && !voiceRecording && (
+              <button
+                className="generate-button"
+                onClick={saveRecordedPersonalVoice}
+                disabled={personalVoiceUploading}
+                style={{ marginTop: "22px" }}
+              >
+                {personalVoiceUploading ? "Saving personal voice..." : " Save My Personal Voice"}
+              </button>
+            )}
+
+
+            {voiceTestAudioUrl && (
+
+              <div
+                style={{
+                  marginTop:
+                    "25px",
+                }}
+              >
+
+                <p>
+                  Your recorded sample:
+                </p>
+
+                <audio
+                  controls
+                  src={
+                    voiceTestAudioUrl
+                  }
+                  style={{
+                    width:
+                      "100%",
+                  }}
+                />
+
+              </div>
+
+            )}
+
+
+            <div
+              style={{
+                marginTop:
+                  "25px",
+
+                padding:
+                  "15px",
+
+                borderRadius:
+                  "12px",
+
+                background:
+                  "rgba(45,106,79,0.12)",
+              }}
+            >
+
+              <strong>
+                Next step
+              </strong>
+
+              <p>
+                Your recording is stored securely in your Aloko voice library. Phase 6 will connect the voice-cloning provider so this recording can generate new speech in your voice.
+              </p>
+
+            </div>
+
+
+            <button
+              className="generate-button"
+              onClick={() =>
+                setPage(
+                  "video"
+                )
+              }
+              style={{
+                marginTop:
+                  "20px",
+              }}
+            >
+              Continue to Creator Video 
+            </button>
+
+          </section>
+
+        </main>
+
+      </div>
+    );
+  }
+
+
+  /* =======================================================
+     HOME
+  ======================================================= */
+
+  if (
+    page === "home"
+  ) {
+
+    return (
+      <div className="app">
+
+        {renderNavbar(
+          "home"
+        )}
+
+
+        <main className="hero">
+
+          <section
+            style={{
+              display:
+                "flex",
+
+              justifyContent:
+                "center",
+
+              alignItems:
+                "center",
+
+              gap:
+                "20px",
+
+              flexWrap:
+                "wrap",
+
+              marginBottom:
+                "25px",
+            }}
+          >
+
+            <AlokoAssistant />
+
+            <div>
+
+              <p className="eyebrow">
+                ALOKO AI ASSISTANT
+              </p>
+
+              <h2
+                style={{
+                  margin:
+                    0,
+                }}
+              >
+                Hi, this is Aloko 
+              </h2>
+
+              <p>
+                Which service should I
+                help you with?
+              </p>
+
+            </div>
+
+          </section>
+
+
+          <p className="eyebrow">
+            AI CREATION PLATFORM
+          </p>
+
+
+          <h1>
+            Create with AI.
+            <br />
+            <span>
+              Make it yours.
+            </span>
+          </h1>
+
+
+          <p className="hero-description">
+            Generate voices, translate
+            speech and create AI videos
+            from one powerful platform.
+          </p>
+
+
+          <section
+            className="home-section"
+            style={{
+              marginTop: "30px",
+            }}
+          >
+            <div
+              style={{
+                padding: "28px",
+                borderRadius: "24px",
+                border: "1px solid rgba(141,149,255,.25)",
+                background: "linear-gradient(135deg, rgba(141,149,255,.12), rgba(255,255,255,.035))",
+                boxShadow: "0 20px 60px rgba(0,0,0,.16)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "18px",
+                  marginBottom: "20px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <AlokoAssistant size={78} />
+                <div style={{ flex: 1, minWidth: "240px" }}>
+                  <p className="eyebrow" style={{ marginBottom: "6px" }}>
+                    ALOKO AI DIRECTOR
+                  </p>
+                  <h2 style={{ margin: 0 }}>
+                    Create an entire video from one idea
+                  </h2>
+                  <p style={{ marginBottom: 0 }}>
+                    Describe your idea and Aloko will write the script,
+                    break it into scenes, select available voices and
+                    avatars, and create an editable Creator Studio project.
+                  </p>
+                </div>
+              </div>
+
+              <textarea
+                value={aiDirectorIdea}
+                onChange={event => setAiDirectorIdea(event.target.value)}
+                rows={5}
+                maxLength={10000}
+                disabled={aiDirectorLoading}
+                placeholder="Example: Create a motivational 60-second video explaining why young Africans should learn AI and use it to solve real problems."
+                style={{
+                  width: "100%",
+                  resize: "vertical",
+                  marginBottom: "18px",
+                }}
+              />
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                  gap: "16px",
+                  marginBottom: "18px",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "18px",
+                    borderRadius: "18px",
+                    background: "rgba(255,255,255,.035)",
+                    border: "1px solid rgba(255,255,255,.08)",
+                  }}
+                >
+                  <div style={{ marginBottom: "10px" }}>
+                    <strong> Voice for this video</strong>
+                    <p style={{ margin: "5px 0 0", fontSize: "12px", opacity: .65 }}>
+                      Choose who should speak. You can still change voices scene by scene later.
+                    </p>
                   </div>
 
-                  {creatorProjects.length > 1 && (
+                  <select
+                    value={aiDirectorVoiceMode}
+                    onChange={event => setAiDirectorVoiceMode(event.target.value)}
+                    disabled={aiDirectorLoading}
+                    style={{ width: "100%" }}
+                  >
+                    <option value="auto"> Let Aloko Choose</option>
+                    <option value="personal">
+                       My Personal Voice
+                    </option>
+                    <option value="builtin"> Choose an Aloko Voice</option>
+                    <option value="none">â­ï¸ No Voice Yet - Add Later</option>
+                  </select>
+
+                  {aiDirectorVoiceMode === "personal" && (
                     <select
-                      value={creatorProject?.id || ""}
-                      onChange={e =>
-                        loadCreatorProject(
-                          Number(e.target.value)
-                        )
-                      }
+                      value={aiDirectorPersonalVoice}
+                      onChange={event => setAiDirectorPersonalVoice(event.target.value)}
+                      disabled={aiDirectorLoading}
+                      style={{ width: "100%", marginTop: "10px" }}
                     >
-                      {creatorProjects.map(project => (
-                        <option
-                          key={project.id}
-                          value={project.id}
-                        >
-                          {project.name}
+                      <option value="">Select your personal voice</option>
+                      {creatorMyVoices
+                        .filter(v => v.voice_type === "custom" && v.status === "ready" && v.provider_voice_id)
+                        .map(voice => (
+                          <option key={voice.id} value={voice.id}>
+                            {voice.name || `Personal Voice ${voice.id}`}
+                          </option>
+                        ))}
+                    </select>
+                  )}
+
+                  {aiDirectorVoiceMode === "builtin" && (
+                    <select
+                      value={aiDirectorBuiltinVoice}
+                      onChange={event => setAiDirectorBuiltinVoice(event.target.value)}
+                      disabled={aiDirectorLoading || !voices.length}
+                      style={{ width: "100%", marginTop: "10px" }}
+                    >
+                      <option value="">Select an Aloko voice</option>
+                      {voices.map(voice => (
+                        <option key={voice.tts_voice} value={voice.tts_voice}>
+                          {voice.name || voice.tts_voice}
+                          {voice.language ? `  -  ${getLanguageName(voice.language)}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {aiDirectorVoiceMode === "personal" && !creatorMyVoices.some(v => v.voice_type === "custom" && v.status === "ready" && v.provider_voice_id) && (
+                    <div style={{ marginTop: "10px" }}>
+                      <p style={{ margin: "0 0 10px", fontSize: "12px", opacity: .72 }}>
+                        You don't have a ready personal voice yet. Record one and save it to your Aloko voice library.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setPage("voice-test")}
+                        disabled={aiDirectorLoading}
+                        style={{ padding: "10px 14px", borderRadius: "10px", border: "1px solid rgba(141,149,255,.45)", background: "rgba(141,149,255,.10)", color: "inherit", cursor: "pointer" }}
+                      >
+                        ðŸŽ™ Record personal voice
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  style={{
+                    padding: "18px",
+                    borderRadius: "18px",
+                    background: "rgba(255,255,255,.035)",
+                    border: "1px solid rgba(255,255,255,.08)",
+                  }}
+                >
+                  <div style={{ marginBottom: "10px" }}>
+                    <strong> Avatar for this video</strong>
+                    <p style={{ margin: "5px 0 0", fontSize: "12px", opacity: .65 }}>
+                      Choose an avatar now or let Aloko decide from your available avatars.
+                    </p>
+                  </div>
+
+                  <select
+                    value={aiDirectorAvatarMode}
+                    onChange={event => setAiDirectorAvatarMode(event.target.value)}
+                    disabled={aiDirectorLoading}
+                    style={{ width: "100%" }}
+                  >
+                    <option value="auto"> Let Aloko Choose</option>
+                    <option value="selected" disabled={!avatars.length}> Choose My Avatar</option>
+                    <option value="none">â­ï¸ No Avatar Yet - Add Later</option>
+                  </select>
+
+                  {aiDirectorAvatarMode === "selected" && (
+                    <select
+                      value={aiDirectorAvatarId}
+                      onChange={event => setAiDirectorAvatarId(event.target.value)}
+                      disabled={aiDirectorLoading || !avatars.length}
+                      style={{ width: "100%", marginTop: "10px" }}
+                    >
+                      <option value="">Select an avatar</option>
+                      {avatars.map(avatar => (
+                        <option key={avatar.id} value={avatar.id}>
+                          {avatar.name || `Avatar ${avatar.id}`}
                         </option>
                       ))}
                     </select>
                   )}
                 </div>
+              </div>
 
-                {/* DEFAULT AVATAR */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <span style={{ fontSize: "12px", opacity: .6 }}>
+                  {aiDirectorIdea.length}/10000
+                </span>
 
-                <div className="form-section">
+                <button
+                  type="button"
+                  className="generate-button"
+                  onClick={handleAIDirectorGenerate}
+                  disabled={
+                    aiDirectorLoading ||
+                    !aiDirectorIdea.trim() ||
+                    (aiDirectorVoiceMode === "personal" && !aiDirectorPersonalVoice) ||
+                    (aiDirectorVoiceMode === "builtin" && !aiDirectorBuiltinVoice) ||
+                    (aiDirectorAvatarMode === "selected" && !aiDirectorAvatarId)
+                  }
+                >
+                  {aiDirectorLoading
+                    ? "Aloko is creating your project..."
+                    : " Create with AI Director"}
+                </button>
+              </div>
+
+              {aiDirectorLoading && (
+                <div
+                  style={{
+                    marginTop: "16px",
+                    padding: "14px 16px",
+                    borderRadius: "14px",
+                    background: "rgba(255,255,255,.04)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    fontSize: "13px",
+                    opacity: .85,
+                  }}
+                >
+                  <div className="spinner" style={{ width: "18px", height: "18px" }} />
+                  Understanding idea  Writing script  Planning scenes  Building project
+                </div>
+              )}
+
+              {aiDirectorError && (
+                <div className="error" style={{ marginTop: "14px" }}>
+                  {aiDirectorError}
+                </div>
+              )}
+
+              {aiDirectorResult?.project && !aiDirectorLoading && (
+                <div
+                  style={{
+                    marginTop: "14px",
+                    padding: "14px 16px",
+                    borderRadius: "14px",
+                    background: "rgba(72,200,130,.08)",
+                    border: "1px solid rgba(72,200,130,.2)",
+                  }}
+                >
+                  <strong>{aiDirectorResult.project.name}</strong>
+                  <span style={{ marginLeft: "10px", opacity: .7, fontSize: "13px" }}>
+                    {aiDirectorResult.scenes?.length || 0} scenes created
+                  </span>
+                </div>
+              )}
+            </div>
+          </section>
+
+
+          {error && (
+            <div className="error">
+              {error}
+            </div>
+          )}
+
+
+          <section className="home-section">
+
+            <div className="section-heading">
+
+              <h2>
+                Creator
+              </h2>
+
+              <p>
+                Tools for individual
+                creators.
+              </p>
+
+            </div>
+
+
+            <div className="feature-grid">
+
+              <div
+                className="feature-card clickable"
+                onClick={() =>
+                  setPage(
+                    "voice"
+                  )
+                }
+              >
+
+                <div className="feature-icon">
+                  
+                </div>
+
+                <h3>
+                  AI Voice
+                </h3>
+
+                <p>
+                  Turn text into natural
+                  speech with AI voices,
+                  languages and accents.
+                </p>
+
+                <span className="feature-link">
+                  Create voice 
+                </span>
+
+              </div>
+
+
+              <div
+                className="feature-card clickable"
+                onClick={() =>
+                  setPage(
+                    "translator"
+                  )
+                }
+              >
+
+                <div className="feature-icon">
+                  
+                </div>
+
+                <h3>
+                  Voice Translator
+                </h3>
+
+                <p>
+                  Translate spoken audio
+                  into another language
+                  and generate a new voice.
+                </p>
+
+                <span className="feature-link">
+                  Translate voice 
+                </span>
+
+              </div>
+
+
+              <div
+                className="feature-card clickable"
+                onClick={() =>
+                  setPage(
+                    avatars.length
+                      ? "video"
+                      : "avatar"
+                  )
+                }
+              >
+
+                <div className="feature-icon">
+                  
+                </div>
+
+                <h3>
+                  Creator AI Video
+                </h3>
+
+                <p>
+                  Create your avatar,
+                  test your microphone and
+                  produce talking-avatar
+                  videos.
+                </p>
+
+                <span className="feature-link">
+                  Create video 
+                </span>
+
+              </div>
+
+
+              <div className="feature-card">
+
+                <div className="feature-icon">
+                  
+                </div>
+
+                <h3>
+                  AI Photo
+                </h3>
+
+                <p>
+                  Create and transform
+                  images with AI.
+                </p>
+
+                <span className="feature-link">
+                  Coming soon 
+                </span>
+
+              </div>
+
+            </div>
+
+          </section>
+
+
+          <section className="home-section">
+
+            <div className="section-heading">
+
+              <h2>
+                Business
+              </h2>
+
+              <p>
+                A separate advanced
+                product for companies.
+              </p>
+
+            </div>
+
+
+            <div className="feature-grid">
+
+              <button
+                className="feature-card business-card"
+                type="button"
+                onClick={() => setPage("business")}
+                style={{ textAlign: "left", cursor: "pointer" }}
+              >
+
+                <div className="feature-icon">
+                  ðŸ¢
+                </div>
+
+                <h3>
+                  Business AI Video
+                </h3>
+
+                <p>
+                  A completely separate
+                  business workspace with
+                  company profiles, brand
+                  kits, products, multiple
+                  images, multiple videos,
+                  multiple avatars, scenes,
+                  AI scripts, marketing,
+                  sales, training and
+                  team features.
+                </p>
+
+                <span className="feature-link">
+                  Open Business AI 
+                </span>
+
+              </button>
+
+            </div>
+
+          </section>
+
+
+          <section className="home-section">
+
+            <div className="section-heading">
+
+              <h2>
+                AI Intelligence
+              </h2>
+
+              <p>
+                Turn documents and media
+                into structured knowledge.
+              </p>
+
+            </div>
+
+
+            <div className="feature-grid">
+
+              <div className="feature-card">
+
+                <div className="feature-icon">
+                  
+                </div>
+
+                <h3>
+                  AI Extract
+                </h3>
+
+                <p>
+                  Extract text, tables,
+                  images, video frames and
+                  transcripts.
+                </p>
+
+                <span className="feature-link">
+                  Coming soon 
+                </span>
+
+              </div>
+
+
+              <div className="feature-card">
+
+                <div className="feature-icon">
+                  ðŸ§ 
+                </div>
+
+                <h3>
+                  AI Knowledge
+                </h3>
+
+                <p>
+                  Build an intelligent
+                  knowledge base from your
+                  documents and information.
+                </p>
+
+                <span className="feature-link">
+                  Coming soon 
+                </span>
+
+              </div>
+
+
+              <div className="feature-card clickable" onClick={() => setPage("university-student")} style={{cursor:"pointer"}}><div className="feature-icon"></div><h3>Student Dashboard</h3><p>View courses, results, GPA, attendance, clearance and payments.</p><span className="feature-link">Open Student Dashboard </span></div>
+
+              <div className="feature-card clickable" onClick={openIndependentLecturer} style={{cursor:"pointer"}}>
+
+                <div className="feature-icon">
+                  
+                </div>
+
+                <h3>
+                  Independent Lecturer
+                </h3>
+
+                <p>
+                  Academic intelligence for universities,
+                  lecturers and students.
+                </p>
+
+                <span className="feature-link">
+                  Open Independent Lecturer 
+                </span>
+
+              </div>
+
+            </div>
+
+          </section>
+
+        </main>
+
+      </div>
+    );
+  }
+
+
+  /* =======================================================
+     AI VOICE PAGE
+  ======================================================= */
+
+  if (
+    page === "voice"
+  ) {
+
+    return (
+      <div className="app">
+
+        {renderNavbar(
+          "voice"
+        )}
+
+
+        <main className="voice-page">
+
+          <button
+            className="back-button clickable"
+            onClick={() =>
+              setPage(
+                "home"
+              )
+            }
+          >
+             Back
+          </button>
+
+
+          <div className="voice-page-header">
+
+            <p className="eyebrow">
+              AI VOICE
+            </p>
+
+            <h1>
+              Create your voice
+            </h1>
+
+            <p>
+              Turn your script into
+              natural-sounding speech.
+            </p>
+
+          </div>
+
+
+          {error && (
+            <div className="error">
+              {error}
+            </div>
+          )}
+
+
+          {loadingVoices ? (
+
+            <div className="loading">
+              Loading voices...
+            </div>
+
+          ) : (
+
+            <div className="voice-page-layout">
+
+              <section className="voice-builder">
+
+                <div className="voice-title">
+
+                  <h3>
+                    Voice settings
+                  </h3>
+
+                  <p>
+                    Choose language, country,
+                    accent, gender and style.
+                  </p>
+
+                </div>
+
+
+                <div className="voice-filters">
+
+                  <div className="filter-group">
+
+                    <label>
+                      Language
+                    </label>
+
+                    <select
+                      value={
+                        selectedLanguage
+                      }
+                      onChange={
+                        event =>
+                          handleLanguageChange(
+                            event.target.value
+                          )
+                      }
+                    >
+
+                      {languages.map(
+                        language => (
+
+                          <option
+                            key={
+                              language
+                            }
+                            value={
+                              language
+                            }
+                          >
+                            {getLanguageName(
+                              language
+                            )}
+                          </option>
+
+                        )
+                      )}
+
+                    </select>
+
+                  </div>
+
+
+                  <div className="filter-group">
+
+                    <label>
+                      Country
+                    </label>
+
+                    <select
+                      value={
+                        selectedCountry
+                      }
+                      onChange={
+                        event =>
+                          handleCountryChange(
+                            event.target.value
+                          )
+                      }
+                    >
+
+                      <option value="">
+                        All countries
+                      </option>
+
+                      {countries.map(
+                        country => (
+
+                          <option
+                            key={
+                              country
+                            }
+                            value={
+                              country
+                            }
+                          >
+                            {getCountryName(
+                              country
+                            )}
+                          </option>
+
+                        )
+                      )}
+
+                    </select>
+
+                  </div>
+
+                </div>
+
+
+                <div className="gender-filter">
+
                   <label>
-                    Default Avatar
+                    Gender
                   </label>
 
-                  {avatars.length === 0 ? (
-                    <div
-                      className="avatar-box"
-                      style={{ padding: "20px" }}
-                    >
-                      <strong>
-                        Create an avatar first.
-                      </strong>
+                  <div className="gender-buttons">
 
-                      <p>
-                        Your avatar will be used for
-                        talking-video scenes.
-                      </p>
+                    {[
+                      ["", "All"],
+                      [
+                        "female",
+                        "Female",
+                      ],
+                      [
+                        "male",
+                        "Male",
+                      ],
+                    ].map(
+                      ([value, label]) => (
+
+                        <button
+                          type="button"
+                          key={
+                            value ||
+                            "all"
+                          }
+                          className={
+                            selectedGender ===
+                            value
+                              ? "active"
+                              : ""
+                          }
+                          onClick={() =>
+                            setSelectedGender(
+                              value
+                            )
+                          }
+                        >
+                          {label}
+                        </button>
+
+                      )
+                    )}
+
+                  </div>
+
+                </div>
+
+
+                <div className="voice-select">
+
+                  <label>
+                    Accent
+                  </label>
+
+                  <select
+                    value={
+                      selectedAccent
+                    }
+                    onChange={
+                      event =>
+                        setSelectedAccent(
+                          event.target.value
+                        )
+                    }
+                  >
+
+                    <option value="">
+                      All accents
+                    </option>
+
+                    {accents.map(
+                      accent => (
+
+                        <option
+                          key={
+                            accent
+                          }
+                          value={
+                            accent
+                          }
+                        >
+                          {getAccentName(
+                            accent
+                          )}
+                        </option>
+
+                      )
+                    )}
+
+                  </select>
+
+                </div>
+
+
+                <div className="voice-select">
+
+                  <label>
+                    Style
+                  </label>
+
+                  <select
+                    value={
+                      selectedStyle
+                    }
+                    onChange={
+                      event =>
+                        setSelectedStyle(
+                          event.target.value
+                        )
+                    }
+                  >
+
+                    <option value="">
+                      All styles
+                    </option>
+
+                    {STYLE_OPTIONS.map(
+                      style => (
+
+                        <option
+                          key={
+                            style
+                          }
+                          value={
+                            style
+                          }
+                        >
+                          {style}
+                        </option>
+
+                      )
+                    )}
+
+                  </select>
+
+                </div>
+
+
+                <div className="voice-select">
+
+                  <label>
+                    Voice
+                  </label>
+
+                  <select
+                    value={
+                      selectedVoice
+                    }
+                    onChange={
+                      event =>
+                        setSelectedVoice(
+                          event.target.value
+                        )
+                    }
+                  >
+
+                    {filteredVoices.map(
+                      voice => (
+
+                        <option
+                          key={
+                            voice.tts_voice
+                          }
+                          value={
+                            voice.tts_voice
+                          }
+                        >
+                          {voice.name ||
+                            voice.tts_voice}
+                        </option>
+
+                      )
+                    )}
+
+                  </select>
+
+                </div>
+
+
+                <button
+                  className="voice-preview-button"
+                  onClick={
+                    handlePreviewVoice
+                  }
+                  disabled={
+                    previewingVoice ||
+                    !selectedVoice
+                  }
+                >
+                  {previewingVoice
+                    ? "Generating preview..."
+                    : " Preview Voice"}
+                </button>
+
+
+                {previewAudioUrl && (
+
+                  <audio
+                    controls
+                    autoPlay
+                    src={
+                      previewAudioUrl
+                    }
+                    style={{
+                      width:
+                        "100%",
+
+                      marginTop:
+                        "15px",
+                    }}
+                  />
+
+                )}
+
+              </section>
+
+
+              <section className="voice-script-panel">
+
+                <div className="voice-script-header">
+
+                  <div>
+
+                    <h3>
+                      Your script
+                    </h3>
+
+                    <p>
+                      Enter the text you
+                      want your AI voice
+                      to speak.
+                    </p>
+
+                  </div>
+
+                  <span>
+                    {script.length}
+                    {" / 5000"}
+                  </span>
+
+                </div>
+
+
+                <textarea
+                  value={
+                    script
+                  }
+                  onChange={
+                    event =>
+                      setScript(
+                        event.target.value
+                      )
+                  }
+                  maxLength={
+                    5000
+                  }
+                  placeholder="Welcome to Aloko, your AI creation platform..."
+                />
+
+
+                <button
+                  className="generate-button"
+                  disabled={
+                    generating ||
+                    !script.trim() ||
+                    !selectedVoice
+                  }
+                  onClick={
+                    handleGenerateVoice
+                  }
+                >
+                  {generating
+                    ? "Generating voice..."
+                    : "Generate Voice"}
+                </button>
+
+
+                {result?.audio_url && (
+
+                  <div className="audio-result">
+
+                    <span className="result-label">
+                      GENERATED VOICE
+                    </span>
+
+                    <h3>
+                      {result.voice_name ||
+                        "Generated voice"}
+                    </h3>
+
+                    <audio
+                      controls
+                      src={
+                        `${API_BASE_URL}${result.audio_url}`
+                      }
+                    />
+
+                    <div className="result-actions">
+
+                      <a
+                        href={
+                          `${API_BASE_URL}${result.audio_url}`
+                        }
+                        download
+                      >
+                        Download MP3
+                      </a>
+
+                    </div>
+
+                  </div>
+
+                )}
+
+              </section>
+
+            </div>
+
+          )}
+
+        </main>
+
+      </div>
+    );
+  }
+
+
+  /* =======================================================
+     TRANSLATOR PAGE
+  ======================================================= */
+
+  if (
+    page === "translator"
+  ) {
+
+    return (
+      <div className="app">
+
+        {renderNavbar(
+          "translator"
+        )}
+
+
+        <main className="translator-page">
+
+          <button
+            className="back-button clickable"
+            onClick={() =>
+              setPage(
+                "home"
+              )
+            }
+          >
+             Back
+          </button>
+
+
+          <div className="translator-header">
+
+            <p className="eyebrow">
+              VOICE TRANSLATOR
+            </p>
+
+            <h1>
+              Translate your voice
+            </h1>
+
+            <p>
+              Record or upload audio,
+              choose a target language
+              and generate translated
+              speech.
+            </p>
+
+          </div>
+
+
+          {translatorError && (
+            <div className="error">
+              {translatorError}
+            </div>
+          )}
+
+
+          <div className="translator-layout">
+
+            <section className="translator-input-panel">
+
+              <div className="translator-section">
+
+                <h3>
+                  1. Your voice
+                </h3>
+
+                <div className="translator-record-box">
+
+                  {!recording ? (
+
+                    <button
+                      className="translator-record-button"
+                      onClick={
+                        startTranslatorRecording
+                      }
+                    >
+                      ðŸŽ™ Start Recording
+                    </button>
+
+                  ) : (
+
+                    <button
+                      className="translator-record-button recording"
+                      onClick={
+                        stopTranslatorRecording
+                      }
+                    >
+                      â¹ Stop Recording{" "}
+                      {recordingSeconds}s
+                    </button>
+
+                  )}
+
+
+                  <span>
+                    or
+                  </span>
+
+
+                  <label className="translator-upload-button">
+
+                    ðŸ“ Upload Audio
+
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={
+                        event =>
+                          setTranslatorFile(
+                            event.target.files?.[0] ||
+                            null
+                          )
+                      }
+                    />
+
+                  </label>
+
+                </div>
+
+
+                {translatorFile && (
+
+                  <div className="translator-file">
+
+                    <strong>
+                      {translatorFile.name}
+                    </strong>
+
+                    <span>
+                      {(
+                        translatorFile.size /
+                        1024 /
+                        1024
+                      ).toFixed(2)}
+                      {" "}
+                      MB
+                    </span>
+
+                  </div>
+
+                )}
+
+              </div>
+
+
+              <div className="translator-section">
+
+                <h3>
+                  2. Target language
+                </h3>
+
+                <select
+                  value={
+                    translatorTargetLanguage
+                  }
+                  onChange={
+                    event => {
+
+                      setTranslatorTargetLanguage(
+                        event.target.value
+                      );
+
+                      setTranslatorCountry("");
+                      setTranslatorAccent("");
+                      setTranslatorGender("");
+                      setTranslatorVoice("");
+
+                      clearTranslatorPreview();
+                    }
+                  }
+                >
+
+                  {translatorLanguages.map(
+                    language => (
+
+                      <option
+                        key={
+                          language.code
+                        }
+                        value={
+                          language.code
+                        }
+                      >
+                        {language.name}
+                      </option>
+
+                    )
+                  )}
+
+                </select>
+
+              </div>
+
+
+              <div className="translator-section">
+
+                <h3>
+                  3. Country
+                </h3>
+
+                <select
+                  value={
+                    translatorCountry
+                  }
+                  onChange={
+                    event => {
+
+                      setTranslatorCountry(
+                        event.target.value
+                      );
+
+                      setTranslatorAccent("");
+                      setTranslatorGender("");
+                      setTranslatorVoice("");
+
+                      clearTranslatorPreview();
+                    }
+                  }
+                >
+
+                  <option value="">
+                    All countries
+                  </option>
+
+                  {translatorCountries.map(
+                    country => (
+
+                      <option
+                        key={
+                          country
+                        }
+                        value={
+                          country
+                        }
+                      >
+                        {getCountryName(
+                          country
+                        )}
+                      </option>
+
+                    )
+                  )}
+
+                </select>
+
+              </div>
+
+
+              <div className="translator-section">
+
+                <h3>
+                  4. Accent
+                </h3>
+
+                <select
+                  value={
+                    translatorAccent
+                  }
+                  onChange={
+                    event => {
+
+                      setTranslatorAccent(
+                        event.target.value
+                      );
+
+                      setTranslatorGender("");
+                      setTranslatorVoice("");
+
+                      clearTranslatorPreview();
+                    }
+                  }
+                >
+
+                  <option value="">
+                    All accents
+                  </option>
+
+                  {translatorAccents.map(
+                    accent => (
+
+                      <option
+                        key={
+                          accent
+                        }
+                        value={
+                          accent
+                        }
+                      >
+                        {getAccentName(
+                          accent
+                        )}
+                      </option>
+
+                    )
+                  )}
+
+                </select>
+
+              </div>
+
+
+              <div className="translator-section">
+
+                <h3>
+                  5. Voice
+                </h3>
+
+
+                <div className="gender-buttons">
+
+                  {[
+                    ["", "All"],
+                    [
+                      "female",
+                      "Female",
+                    ],
+                    [
+                      "male",
+                      "Male",
+                    ],
+                  ].map(
+                    ([value, label]) => (
 
                       <button
-                        className="generate-button"
-                        onClick={() => setPage("avatar")}
+                        type="button"
+                        key={
+                          value ||
+                          "all"
+                        }
+                        className={
+                          translatorGender ===
+                          value
+                            ? "active"
+                            : ""
+                        }
+                        onClick={() =>
+                          setTranslatorGender(
+                            value
+                          )
+                        }
                       >
-                        Create Avatar
+                        {label}
                       </button>
+
+                    )
+                  )}
+
+                </div>
+
+
+                <select
+                  value={
+                    translatorVoice
+                  }
+                  onChange={
+                    event =>
+                      setTranslatorVoice(
+                        event.target.value
+                      )
+                  }
+                >
+
+                  {translatorVoices.map(
+                    voice => (
+
+                      <option
+                        key={
+                          voice.tts_voice
+                        }
+                        value={
+                          voice.tts_voice
+                        }
+                      >
+                        {voice.name ||
+                          voice.tts_voice}
+                      </option>
+
+                    )
+                  )}
+
+                </select>
+
+
+                <button
+                  type="button"
+                  className="voice-preview-button"
+                  onClick={
+                    handleTranslatorPreview
+                  }
+                  disabled={
+                    translatorPreviewLoading ||
+                    !translatorVoice
+                  }
+                >
+                  {translatorPreviewLoading
+                    ? "Generating..."
+                    : " Preview Voice"}
+                </button>
+
+
+                {translatorPreviewAudioUrl && (
+
+                  <audio
+                    controls
+                    src={
+                      translatorPreviewAudioUrl
+                    }
+                    style={{
+                      width:
+                        "100%",
+
+                      marginTop:
+                        "12px",
+                    }}
+                  />
+
+                )}
+
+              </div>
+
+
+              <button
+                className="generate-button translator-generate-button"
+                disabled={
+                  translatorLoading ||
+                  !translatorFile ||
+                  !translatorVoice
+                }
+                onClick={
+                  handleTranslateVoice
+                }
+              >
+                {translatorLoading
+                  ? "Translating..."
+                  : " Translate Voice"}
+              </button>
+
+            </section>
+
+
+            <section className="translator-result-panel">
+
+              {translatorLoading ? (
+
+                <div className="preview-empty">
+
+                  <div className="spinner"></div>
+
+                  <h2>
+                    Translating your voice
+                  </h2>
+
+                  <p>
+                    Aloko is transcribing,
+                    translating and generating
+                    your new voice.
+                  </p>
+
+                </div>
+
+              ) : translatorResult ? (
+
+                <div className="translator-result">
+
+                  <span className="result-label">
+                    TRANSLATED VOICE
+                  </span>
+
+                  <h2>
+                    Your translation is ready
+                  </h2>
+
+
+                  <div className="translator-text-card">
+
+                    <div>
+
+                      <span>
+                        ORIGINAL
+                      </span>
+
+                      <p>
+                        {
+                          translatorResult.source_text
+                        }
+                      </p>
+
+                    </div>
+
+
+                    <div>
+
+                      <span>
+                        TRANSLATION
+                      </span>
+
+                      <p>
+                        {
+                          translatorResult.translated_text
+                        }
+                      </p>
+
+                    </div>
+
+                  </div>
+
+
+                  <audio
+                    controls
+                    src={
+                      `${API_BASE_URL}${translatorResult.audio_url}`
+                    }
+                  />
+
+
+                  <div className="result-actions">
+
+                    <a
+                      href={
+                        `${API_BASE_URL}${translatorResult.audio_url}`
+                      }
+                      download
+                    >
+                      Download MP3
+                    </a>
+
+                  </div>
+
+                </div>
+
+              ) : (
+
+                <div className="preview-empty">
+
+                  <div className="preview-icon">
+                    
+                  </div>
+
+                  <h2>
+                    Your translated voice
+                    will appear here
+                  </h2>
+
+                  <p>
+                    Record or upload audio,
+                    choose a language and
+                    generate the translation.
+                  </p>
+
+                </div>
+
+              )}
+
+            </section>
+
+          </div>
+
+        </main>
+
+      </div>
+    );
+  }
+
+
+  /* =======================================================
+     CREATOR STUDIO
+  ======================================================= */
+
+  if (page === "video") {
+    const readyPersonalVoices = creatorMyVoices.filter(v => v.voice_type === "custom" && v.status === "ready" && v.provider_voice_id);
+    const selectedAvatar = avatars.find(a => Number(a.id) === Number(selectedAvatarId));
+
+    return (
+      <div className="app">
+        {renderNavbar("video")}
+        <main style={{ maxWidth: "1250px", margin: "0 auto", padding: "35px 20px 70px" }}>
+          <button className="back-button clickable" onClick={() => setPage("home")}> Back</button>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "20px", flexWrap: "wrap", marginBottom: "30px" }}>
+            <div>
+              <p className="eyebrow">ALOKO CREATOR STUDIO</p>
+              <h1>Create your AI video</h1>
+              <p>Build your video scene by scene, choose your avatar and voice, then render the complete MP4.</p>
+            </div>
+            <button className="generate-button" onClick={createNewCreatorProject} disabled={creatorSaving || creatorLoading}>+ New Project</button>
+          </div>
+
+          {error && <div className="error">{error}</div>}
+
+          {creatorLoading ? (
+            <section className="coming-card" style={{ textAlign: "center", padding: "60px 25px" }}>
+              <div className="spinner"></div>
+              <h2>Opening Creator Studio...</h2>
+              <p>Loading your projects and scenes.</p>
+            </section>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(320px, 0.8fr)", gap: "25px", alignItems: "start" }}>
+              <section className="creator-panel" style={{ padding: "25px" }}>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "15px", marginBottom: "25px", flexWrap: "wrap" }}>
+                  <div>
+                    <span className="result-label">PROJECT</span>
+                    <h2 style={{ margin: "5px 0 0" }}>{creatorProject?.name || "My AI Video"}</h2>
+                  </div>
+                  {creatorProjects.length > 1 && (
+                    <select value={creatorProject?.id || ""} onChange={e => loadCreatorProject(Number(e.target.value))}>
+                      {creatorProjects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}
+                    </select>
+                  )}
+                </div>
+
+                <div className="form-section">
+                  <label>Avatar</label>
+                  {avatars.length === 0 ? (
+                    <div className="avatar-box" style={{ padding: "20px" }}>
+                      <strong>Create an avatar first.</strong>
+                      <p>Your avatar will be used for the talking-video scenes.</p>
+                      <button className="generate-button" onClick={() => setPage("avatar")}>Create Avatar</button>
                     </div>
                   ) : (
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fill, minmax(150px, 1fr))",
-                        gap: "12px",
-                      }}
-                    >
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "12px" }}>
                       {avatars.map(avatar => (
-                        <button
-                          key={avatar.id}
-                          type="button"
-                          onClick={() =>
-                            setSelectedAvatarId(avatar.id)
-                          }
-                          style={{
-                            border:
-                              Number(selectedAvatarId) ===
-                              Number(avatar.id)
-                                ? "2px solid #8d95ff"
-                                : "1px solid rgba(255,255,255,0.12)",
-                            borderRadius: "14px",
-                            padding: "8px",
-                            background: "transparent",
-                            cursor: "pointer",
-                            textAlign: "left",
-                          }}
-                        >
-                          <img
-                            src={getAvatarImageUrl(
-                              avatar.image_url
-                            )}
-                            alt={
-                              avatar.name ||
-                              "Avatar"
-                            }
-                            style={{
-                              width: "100%",
-                              aspectRatio: "1 / 1",
-                              objectFit: "cover",
-                              borderRadius: "10px",
-                              display: "block",
-                            }}
-                          />
-
-                          <strong
-                            style={{
-                              display: "block",
-                              marginTop: "8px",
-                            }}
-                          >
-                            {avatar.name ||
-                              "My Avatar"}
-                          </strong>
+                        <button key={avatar.id} type="button" onClick={() => setSelectedAvatarId(avatar.id)} style={{ border: Number(selectedAvatarId) === Number(avatar.id) ? "2px solid #8d95ff" : "1px solid rgba(255,255,255,0.12)", borderRadius: "14px", padding: "8px", background: "transparent", cursor: "pointer", textAlign: "left" }}>
+                          <img src={getAvatarImageUrl(avatar.image_url)} alt={avatar.name || "Avatar"} style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", borderRadius: "10px", display: "block" }} />
+                          <strong style={{ display: "block", marginTop: "8px" }}>{avatar.name || "My Avatar"}</strong>
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
 
-                {/* SCENES */}
+                <div className="form-section" style={{ marginTop: "28px" }}>
+                  <label>Voice</label>
+                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => setCreatorVoiceType("built_in")} style={{ padding: "10px 15px", borderRadius: "10px", border: creatorVoiceType === "built_in" ? "2px solid #8d95ff" : "1px solid rgba(255,255,255,0.12)", background: "transparent", cursor: "pointer" }}>Built-in Voice</button>
+                    <button type="button" onClick={() => setCreatorVoiceType("personal")} disabled={!readyPersonalVoices.length} style={{ padding: "10px 15px", borderRadius: "10px", border: creatorVoiceType === "personal" ? "2px solid #8d95ff" : "1px solid rgba(255,255,255,0.12)", background: "transparent", cursor: readyPersonalVoices.length ? "pointer" : "not-allowed", opacity: readyPersonalVoices.length ? 1 : 0.5 }}>My Personal Voice</button>
+                  </div>
+                  {creatorVoiceType === "built_in" && <p style={{ marginTop: "12px" }}>The current Creator renderer uses its configured built-in voice when a personal voice is not selected.</p>}
+                  {creatorVoiceType === "personal" && (readyPersonalVoices.length ? (
+                    <select value={creatorSelectedPersonalVoice} onChange={e => setCreatorSelectedPersonalVoice(e.target.value)} style={{ width: "100%", marginTop: "12px" }}>
+                      <option value="">Select your personal voice</option>
+                      {readyPersonalVoices.map(v => <option key={v.id} value={v.id}>{v.name || "Personal Voice"}</option>)}
+                    </select>
+                  ) : <div style={{ marginTop: "12px", padding: "14px", borderRadius: "10px" }}>No ready personal voices are available yet. Your uploaded voice must be ready before it can be used.</div>)}
+                </div>
 
-                <div
-                  className="form-section"
-                  style={{ marginTop: "32px" }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: "15px",
-                    }}
-                  >
-                    <div>
-                      <label>
-                        Scenes
-                      </label>
-
-                      <p style={{ marginTop: "5px" }}>
-                        Every scene has independent
-                        avatar, voice and visual settings.
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="generate-button"
-                      onClick={addCreatorScene}
-                      disabled={
-                        !creatorProject ||
-                        creatorSaving
-                      }
-                    >
-                      + Add Scene
-                    </button>
+                <div className="form-section" style={{ marginTop: "32px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "15px" }}>
+                    <div><label>Scenes</label><p style={{ marginTop: "5px" }}>Each scene becomes one part of your final video.</p></div>
+                    <button type="button" className="generate-button" onClick={addCreatorScene} disabled={!creatorProject || creatorSaving}>+ Add Scene</button>
                   </div>
 
                   {creatorScenes.length === 0 ? (
-                    <div
-                      className="preview-empty"
-                      style={{ marginTop: "20px" }}
-                    >
-                      <div className="preview-icon"></div>
-
-                      <h2>
-                        No scenes yet
-                      </h2>
-
-                      <p>
-                        Add your first scene and
-                        write the script Aloko should speak.
-                      </p>
-                    </div>
+                    <div className="preview-empty" style={{ marginTop: "20px" }}><div className="preview-icon"></div><h2>No scenes yet</h2><p>Add your first scene and write the script Aloko should speak.</p></div>
                   ) : (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "18px",
-                        marginTop: "20px",
-                      }}
-                    >
-                      {creatorScenes.map(scene => {
-
-                        const sceneAvatar =
-                          avatars.find(
-                            a =>
-                              Number(a.id) ===
-                              Number(scene.avatar_id)
-                          );
-
-                        const sceneVoiceMode =
-                          scene.voice_id
-                            ? "personal"
-                            : "built_in";
-
-                        return (
-                          <div
-                            key={scene.id}
-                            style={{
-                              border:
-                                "1px solid rgba(255,255,255,0.12)",
-                              borderRadius: "16px",
-                              padding: "18px",
-                            }}
-                          >
-
-                            {/* HEADER */}
-
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent:
-                                  "space-between",
-                                alignItems: "center",
-                                marginBottom: "18px",
-                              }}
-                            >
-                              <strong>
-                                Scene {scene.scene_order}
-                              </strong>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  removeCreatorScene(
-                                    scene.id
-                                  )
-                                }
-                                disabled={
-                                  creatorSaving
-                                }
-                                style={{
-                                  border: "none",
-                                  background:
-                                    "transparent",
-                                  cursor: "pointer",
-                                  color: "#ff8f8f",
-                                }}
-                              >
-                                Delete
-                              </button>
-                            </div>
-
-                            {/* AVATAR */}
-
-                            <div
-                              style={{
-                                marginBottom: "18px",
-                              }}
-                            >
-                              <label>
-                                Avatar
-                              </label>
-
-                              <select
-                                value={
-                                  scene.avatar_id ||
-                                  ""
-                                }
-                                onChange={e => {
-                                  const value =
-                                    e.target.value
-                                      ? Number(
-                                          e.target.value
-                                        )
-                                      : null;
-
-                                  saveSceneField(
-                                    scene.id,
-                                    "avatar_id",
-                                    value
-                                  );
-                                }}
-                                style={{
-                                  width: "100%",
-                                  marginTop: "8px",
-                                }}
-                              >
-                                <option value="">
-                                  Select avatar
-                                </option>
-
-                                {avatars.map(
-                                  avatar => (
-                                    <option
-                                      key={avatar.id}
-                                      value={avatar.id}
-                                    >
-                                      {avatar.name ||
-                                        "My Avatar"}
-                                    </option>
-                                  )
-                                )}
-                              </select>
-
-                              {sceneAvatar && (
-                                <div
-                                  style={{
-                                    marginTop: "8px",
-                                    fontSize: "12px",
-                                    opacity: 0.7,
-                                  }}
-                                >
-                                  Using:{" "}
-                                  {sceneAvatar.name ||
-                                    "My Avatar"}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* VOICE */}
-
-                            <div
-                              style={{
-                                marginBottom: "18px",
-                              }}
-                            >
-                              <label>
-                                Voice
-                              </label>
-
-                              <select
-                                value={sceneVoiceMode}
-                                onChange={e => {
-                                  const mode =
-                                    e.target.value;
-
-                                  if (
-                                    mode ===
-                                    "personal"
-                                  ) {
-                                    saveCreatorScene(
-                                      scene.id,
-                                      {
-                                        voice_id:
-                                          readyPersonalVoices[0]
-                                            ?.id || null,
-                                        voice: null,
-                                      }
-                                    );
-
-                                    setCreatorScenes(
-                                      prev =>
-                                        prev.map(
-                                          item =>
-                                            item.id ===
-                                            scene.id
-                                              ? {
-                                                  ...item,
-                                                  voice_id:
-                                                    readyPersonalVoices[0]
-                                                      ?.id ||
-                                                    null,
-                                                  voice: null,
-                                                }
-                                              : item
-                                        )
-                                    );
-                                  } else {
-                                    saveCreatorScene(
-                                      scene.id,
-                                      {
-                                        voice_id:
-                                          null,
-                                        voice:
-                                          builtInVoices[0]
-                                            .value,
-                                      }
-                                    );
-
-                                    setCreatorScenes(
-                                      prev =>
-                                        prev.map(
-                                          item =>
-                                            item.id ===
-                                            scene.id
-                                              ? {
-                                                  ...item,
-                                                  voice_id:
-                                                    null,
-                                                  voice:
-                                                    builtInVoices[0]
-                                                      .value,
-                                                }
-                                              : item
-                                        )
-                                    );
-                                  }
-                                }}
-                                style={{
-                                  width: "100%",
-                                  marginTop: "8px",
-                                }}
-                              >
-                                <option value="built_in">
-                                  Aloko Built-in Voice
-                                </option>
-
-                                <option
-                                  value="personal"
-                                  disabled={
-                                    !readyPersonalVoices.length
-                                  }
-                                >
-                                  My Personal Voice
-                                </option>
-                              </select>
-
-                              {sceneVoiceMode ===
-                                "personal" && (
-                                <select
-                                  value={
-                                    scene.voice_id ||
-                                    ""
-                                  }
-                                  onChange={e => {
-                                    const value =
-                                      e.target.value
-                                        ? Number(
-                                            e.target
-                                              .value
-                                          )
-                                        : null;
-
-                                    saveCreatorScene(
-                                      scene.id,
-                                      {
-                                        voice_id:
-                                          value,
-                                        voice:
-                                          null,
-                                      }
-                                    );
-
-                                    setCreatorScenes(
-                                      prev =>
-                                        prev.map(
-                                          item =>
-                                            item.id ===
-                                            scene.id
-                                              ? {
-                                                  ...item,
-                                                  voice_id:
-                                                    value,
-                                                  voice:
-                                                    null,
-                                                }
-                                              : item
-                                        )
-                                    );
-                                  }}
-                                  style={{
-                                    width: "100%",
-                                    marginTop: "8px",
-                                  }}
-                                >
-                                  <option value="">
-                                    Select personal voice
-                                  </option>
-
-                                  {readyPersonalVoices.map(
-                                    voice => (
-                                      <option
-                                        key={voice.id}
-                                        value={voice.id}
-                                      >
-                                        {voice.name ||
-                                          "Personal Voice"}
-                                      </option>
-                                    )
-                                  )}
-                                </select>
-                              )}
-
-                              {sceneVoiceMode ===
-                                "built_in" && (
-                                <select
-                                  value={
-                                    scene.voice ||
-                                    builtInVoices[0]
-                                      .value
-                                  }
-                                  onChange={e =>
-                                    saveCreatorScene(
-                                      scene.id,
-                                      {
-                                        voice_id:
-                                          null,
-                                        voice:
-                                          e.target.value,
-                                      }
-                                    )
-                                  }
-                                  style={{
-                                    width: "100%",
-                                    marginTop: "8px",
-                                  }}
-                                >
-                                  {builtInVoices.map(
-                                    voice => (
-                                      <option
-                                        key={
-                                          voice.value
-                                        }
-                                        value={
-                                          voice.value
-                                        }
-                                      >
-                                        {voice.label}
-                                      </option>
-                                    )
-                                  )}
-                                </select>
-                              )}
-                            </div>
-
-                            {/* SCRIPT */}
-
-                            <div
-                              style={{
-                                marginBottom: "18px",
-                              }}
-                            >
-                              <label>
-                                Script
-                              </label>
-
-                              <textarea
-                                value={
-                                  scene.script || ""
-                                }
-                                onChange={e => {
-                                  const value =
-                                    e.target.value;
-
-                                  setCreatorScenes(
-                                    prev =>
-                                      prev.map(
-                                        item =>
-                                          item.id ===
-                                          scene.id
-                                            ? {
-                                                ...item,
-                                                script:
-                                                  value,
-                                              }
-                                            : item
-                                      )
-                                  );
-                                }}
-                                onBlur={e =>
-                                  saveCreatorScene(
-                                    scene.id,
-                                    {
-                                      script:
-                                        e.target.value,
-                                    }
-                                  )
-                                }
-                                maxLength={5000}
-                                rows={6}
-                                placeholder="Write what your avatar should say in this scene..."
-                                style={{
-                                  width: "100%",
-                                  resize: "vertical",
-                                }}
-                              />
-
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent:
-                                    "space-between",
-                                  marginTop: "8px",
-                                  fontSize: "12px",
-                                  opacity: 0.65,
-                                }}
-                              >
-                                <span>
-                                  {(scene.script || "")
-                                    .length}
-                                  /5000
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* VISUAL CONTROLS */}
-
-                            <div
-                              style={{
-                                display: "grid",
-                                gridTemplateColumns:
-                                  "repeat(auto-fit, minmax(150px, 1fr))",
-                                gap: "12px",
-                              }}
-                            >
-
-                              <div>
-                                <label>
-                                  Environment
-                                </label>
-
-                                <select
-                                  value={
-                                    scene.environment ||
-                                    ""
-                                  }
-                                  onChange={e =>
-                                    saveSceneField(
-                                      scene.id,
-                                      "environment",
-                                      e.target.value ||
-                                        null
-                                    )
-                                  }
-                                  style={{
-                                    width: "100%",
-                                    marginTop: "7px",
-                                  }}
-                                >
-                                  <option value="">
-                                    Default
-                                  </option>
-                                  <option value="studio">
-                                    Studio
-                                  </option>
-                                  <option value="office">
-                                    Office
-                                  </option>
-                                  <option value="classroom">
-                                    Classroom
-                                  </option>
-                                  <option value="outdoor">
-                                    Outdoor
-                                  </option>
-                                  <option value="newsroom">
-                                    Newsroom
-                                  </option>
-                                </select>
-                              </div>
-
-                              <div>
-                                <label>
-                                  Camera
-                                </label>
-
-                                <select
-                                  value={
-                                    scene.camera ||
-                                    ""
-                                  }
-                                  onChange={e =>
-                                    saveSceneField(
-                                      scene.id,
-                                      "camera",
-                                      e.target.value ||
-                                        null
-                                    )
-                                  }
-                                  style={{
-                                    width: "100%",
-                                    marginTop: "7px",
-                                  }}
-                                >
-                                  <option value="">
-                                    Default
-                                  </option>
-                                  <option value="close_up">
-                                    Close-up
-                                  </option>
-                                  <option value="medium">
-                                    Medium
-                                  </option>
-                                  <option value="wide">
-                                    Wide
-                                  </option>
-                                </select>
-                              </div>
-
-                              <div>
-                                <label>
-                                  Action
-                                </label>
-
-                                <select
-                                  value={
-                                    scene.action ||
-                                    ""
-                                  }
-                                  onChange={e =>
-                                    saveSceneField(
-                                      scene.id,
-                                      "action",
-                                      e.target.value ||
-                                        null
-                                    )
-                                  }
-                                  style={{
-                                    width: "100%",
-                                    marginTop: "7px",
-                                  }}
-                                >
-                                  <option value="">
-                                    Natural
-                                  </option>
-                                  <option value="talking">
-                                    Talking
-                                  </option>
-                                  <option value="presenting">
-                                    Presenting
-                                  </option>
-                                  <option value="explaining">
-                                    Explaining
-                                  </option>
-                                </select>
-                              </div>
-
-                              <div>
-                                <label>
-                                  Transition
-                                </label>
-
-                                <select
-                                  value={
-                                    scene.transition ||
-                                    ""
-                                  }
-                                  onChange={e =>
-                                    saveSceneField(
-                                      scene.id,
-                                      "transition",
-                                      e.target.value ||
-                                        null
-                                    )
-                                  }
-                                  style={{
-                                    width: "100%",
-                                    marginTop: "7px",
-                                  }}
-                                >
-                                  <option value="">
-                                    Cut
-                                  </option>
-                                  <option value="fade">
-                                    Fade
-                                  </option>
-                                  <option value="crossfade">
-                                    Crossfade
-                                  </option>
-                                </select>
-                              </div>
-                            </div>
-
-                            {/* CAPTIONS */}
-
-                            <label
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                marginTop: "16px",
-                                cursor: "pointer",
-                              }}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={
-                                  scene.captions_enabled !==
-                                  false
-                                }
-                                onChange={e =>
-                                  saveSceneField(
-                                    scene.id,
-                                    "captions_enabled",
-                                    e.target.checked
-                                  )
-                                }
-                              />
-
-                              Captions
-                            </label>
-
+                    <div style={{ display: "flex", flexDirection: "column", gap: "18px", marginTop: "20px" }}>
+                      {creatorScenes.map(scene => (
+                        <div key={scene.id} style={{ border: "1px solid rgba(255,255,255,0.12)", borderRadius: "16px", padding: "18px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                            <strong>Scene {scene.scene_order}</strong>
+                            <button type="button" onClick={() => removeCreatorScene(scene.id)} disabled={creatorSaving} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#ff8f8f" }}>Delete</button>
                           </div>
-                        );
-                      })}
+                          <textarea value={scene.script || ""} onChange={e => { const value=e.target.value; setCreatorScenes(prev => prev.map(item => item.id === scene.id ? {...item, script:value} : item)); }} onBlur={e => saveCreatorScene(scene.id, { script:e.target.value, avatar_id:selectedAvatarId ? Number(selectedAvatarId) : null, voice_id:creatorVoiceType === "personal" && creatorSelectedPersonalVoice ? Number(creatorSelectedPersonalVoice) : null })} maxLength={5000} rows={6} placeholder="Write what your avatar should say in this scene..." style={{ width: "100%", resize: "vertical" }} />
+                          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "12px", opacity: 0.65 }}><span>Avatar: {selectedAvatar?.name || "Not selected"}</span><span>{(scene.script || "").length}/5000</span></div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
 
-                <button
-                  className="generate-button"
-                  style={{
-                    width: "100%",
-                    marginTop: "30px",
-                  }}
-                  disabled={
-                    creatorRenderLoading ||
-                    creatorSaving ||
-                    !creatorProject ||
-                    !creatorScenes.length ||
-                    creatorScenes.some(
-                      scene =>
-                        !scene.avatar_id ||
-                        !scene.script?.trim() ||
-                        (
-                          !scene.voice_id &&
-                          !scene.voice
-                        )
-                    )
-                  }
-                  onClick={handleCreatorRender}
-                >
-                  {creatorRenderLoading
-                    ? "Rendering video..."
-                    : "Generate Video"}
-                </button>
-
-                {creatorRenderError && (
-                  <div
-                    className="error"
-                    style={{ marginTop: "15px" }}
-                  >
-                    {creatorRenderError}
-                  </div>
-                )}
+                <button className="generate-button" style={{ width: "100%", marginTop: "30px" }} disabled={creatorRenderLoading || creatorSaving || !creatorProject || !creatorScenes.length || !selectedAvatarId} onClick={handleCreatorRender}>{creatorRenderLoading ? "Rendering video..." : " Generate Video"}</button>
+                {creatorRenderError && <div className="error" style={{ marginTop: "15px" }}>{creatorRenderError}</div>}
               </section>
 
-              {/* PREVIEW */}
-
-              <section
-                className="creator-panel"
-                style={{
-                  padding: "25px",
-                  position: "sticky",
-                  top: "20px",
-                }}
-              >
-                <span className="result-label">
-                  VIDEO PREVIEW
-                </span>
-
+              <section className="creator-panel" style={{ padding: "25px", position: "sticky", top: "20px" }}>
+                <span className="result-label">VIDEO PREVIEW</span>
                 {creatorRenderLoading ? (
-                  <div
-                    className="preview-empty"
-                    style={{
-                      minHeight: "430px",
-                    }}
-                  >
-                    <div className="spinner"></div>
-
-                    <h2>
-                      Creating your video
-                    </h2>
-
-                    <p>
-                      Aloko is generating the
-                      voice, animating the avatar
-                      and combining your scenes.
-                    </p>
-                  </div>
+                  <div className="preview-empty" style={{ minHeight: "430px" }}><div className="spinner"></div><h2>Creating your video</h2><p>Aloko is generating the voice, animating the avatar and combining your scenes.</p></div>
                 ) : creatorRenderResult?.video_url ? (
-                  <div>
-                    <h2 style={{ marginTop: "10px" }}>
-                      Your video is ready
-                    </h2>
-
-                    <video
-                      controls
-                      style={{
-                        width: "100%",
-                        borderRadius: "14px",
-                        marginTop: "15px",
-                        display: "block",
-                      }}
-                      src={getMediaUrl(
-                        creatorRenderResult.video_url
-                      )}
-                    />
-
-                    <div
-                      className="result-actions"
-                      style={{ marginTop: "15px" }}
-                    >
-                      <a
-                        href={getMediaUrl(
-                          creatorRenderResult.video_url
-                        )}
-                        download
-                      >
-                        Download MP4
-                      </a>
-                    </div>
-                  </div>
+                  <div><h2 style={{ marginTop: "10px" }}>Your video is ready</h2><video controls style={{ width: "100%", borderRadius: "14px", marginTop: "15px", display: "block" }} src={getMediaUrl(creatorRenderResult.video_url)} /><div className="result-actions" style={{ marginTop: "15px" }}><a href={getMediaUrl(creatorRenderResult.video_url)} download>Download MP4</a></div></div>
                 ) : (
-                  <div
-                    className="preview-empty"
-                    style={{
-                      minHeight: "430px",
-                    }}
-                  >
-                    <div className="preview-icon"></div>
-
-                    <h2>
-                      Your final video
-                    </h2>
-
-                    <p>
-                      Select an avatar, configure
-                      each scene and generate the
-                      finished MP4.
-                    </p>
-                  </div>
+                  <div className="preview-empty" style={{ minHeight: "430px" }}><div className="preview-icon"></div><h2>Your final video</h2><p>Select an avatar, add your scenes and generate the video. The finished MP4 will appear here.</p></div>
                 )}
               </section>
             </div>
