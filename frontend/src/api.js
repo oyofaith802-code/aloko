@@ -426,6 +426,21 @@ export async function uploadAvatar({
 }
 
 
+export async function deleteAvatar(avatarId) {
+  const response = await authFetch(
+    `${API_BASE_URL}/avatars/${avatarId}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  return handleResponse(
+    response,
+    "Failed to delete avatar"
+  );
+}
+
+
 // ============================================================
 // TRANSLATOR
 // ============================================================

@@ -18,6 +18,8 @@ from app.database.connection import get_db
 from app.core.security import get_current_user
 from app.models.avatar import Avatar
 from app.models.user import User
+from app.models.creator_scene import CreatorScene
+from app.models.video import Video
 
 
 # =========================================================
@@ -318,6 +320,88 @@ def get_my_avatars(
         }
         for avatar in avatars
     ]
+
+
+
+# =========================================================
+# DELETE AVATAR
+# =========================================================
+
+@router.delete("/{avatar_id}")
+def delete_avatar(
+    avatar_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    avatar = (
+        db.query(Avatar)
+        .filter(
+            Avatar.id == avatar_id,
+            Avatar.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not avatar:
+        raise HTTPException(
+            status_code=404,
+            detail="Avatar not found.",
+        )
+
+    scene_using_avatar = (
+        db.query(CreatorScene)
+        .filter(CreatorScene.avatar_id == avatar.id)
+        .first()
+    )
+
+    if scene_using_avatar:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This avatar is currently used by a Creator Studio scene. "
+                "Select another avatar for that scene before deleting it."
+            ),
+        )
+
+    video_using_avatar = (
+        db.query(Video)
+        .filter(Video.avatar_id == avatar.id)
+        .first()
+    )
+
+    if video_using_avatar:
+        raise HTTPException(
+            status_code=409,
+            detail="This avatar is used by an existing video and cannot be deleted.",
+        )
+
+    image_url = avatar.image_url or ""
+
+    if "/storage/" in image_url:
+        relative_path = image_url.split("/storage/", 1)[1]
+        file_path = STORAGE_DIR / Path(relative_path)
+    else:
+        file_path = Path(image_url)
+
+    try:
+        db.delete(avatar)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to delete avatar.",
+        ) from exc
+
+    try:
+        file_path.resolve().unlink(missing_ok=True)
+    except OSError:
+        pass
+
+    return {
+        "message": "Avatar deleted successfully.",
+        "id": avatar_id,
+    }
 
 
 # =========================================================

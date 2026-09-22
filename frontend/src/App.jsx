@@ -28,6 +28,7 @@ import {
 
   getMyAvatars,
   uploadAvatar,
+  deleteAvatar,
   getMyVoices,
   uploadVoice,
 
@@ -2133,7 +2134,45 @@ function handleCountryChange(
      CREATE IMAGE AVATAR
   ======================================================= */
 
-  async function handleCreateAvatar() {
+  async function handleDeleteAvatar(avatar) {
+  const avatarId = Number(avatar.id);
+  const avatarName = avatar.name || "My Avatar";
+
+  const confirmed = window.confirm(
+    `Delete "${avatarName}"? This action cannot be undone.`
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  setError("");
+
+  try {
+    await deleteAvatar(avatarId);
+
+    setAvatars(previous =>
+      previous.filter(
+        item => Number(item.id) !== avatarId
+      )
+    );
+
+    if (Number(selectedAvatarId) === avatarId) {
+      setSelectedAvatarId("");
+    }
+
+    if (Number(aiDirectorAvatarId) === avatarId) {
+      setAiDirectorAvatarId("");
+    }
+  } catch (err) {
+    setError(
+      err.message ||
+      "Failed to delete avatar."
+    );
+  }
+}
+
+async function handleCreateAvatar() {
 
     setError("");
 
@@ -6692,12 +6731,74 @@ function handleCountryChange(
                     </div>
                   ) : (
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "12px" }}>
-                      {avatars.map(avatar => (
-                        <button key={avatar.id} type="button" onClick={() => setSelectedAvatarId(avatar.id)} style={{ border: Number(selectedAvatarId) === Number(avatar.id) ? "2px solid #8d95ff" : "1px solid rgba(255,255,255,0.12)", borderRadius: "14px", padding: "8px", background: "transparent", cursor: "pointer", textAlign: "left" }}>
-                          <img src={getAvatarImageUrl(avatar.image_url)} alt={avatar.name || "Avatar"} style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", borderRadius: "10px", display: "block" }} />
-                          <strong style={{ display: "block", marginTop: "8px" }}>{avatar.name || "My Avatar"}</strong>
-                        </button>
-                      ))}
+                      {
+  avatars.map(avatar => (
+    <div
+      key={avatar.id}
+      style={{
+        border:
+          Number(selectedAvatarId) === Number(avatar.id)
+            ? "2px solid #8d95ff"
+            : "1px solid rgba(255,255,255,0.12)",
+        borderRadius: "14px",
+        padding: "8px",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setSelectedAvatarId(avatar.id)}
+        style={{
+          width: "100%",
+          border: "none",
+          padding: 0,
+          background: "transparent",
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <img
+          src={getAvatarImageUrl(avatar.image_url)}
+          alt={avatar.name || "Avatar"}
+          style={{
+            width: "100%",
+            aspectRatio: "1 / 1",
+            objectFit: "cover",
+            borderRadius: "10px",
+            display: "block",
+          }}
+        />
+        <strong
+          style={{
+            display: "block",
+            marginTop: "8px",
+          }}
+        >
+          {avatar.name || "My Avatar"}
+        </strong>
+      </button>
+
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          handleDeleteAvatar(avatar);
+        }}
+        style={{
+          width: "100%",
+          marginTop: "8px",
+          padding: "7px 10px",
+          borderRadius: "8px",
+          border: "1px solid rgba(255,80,80,0.35)",
+          background: "rgba(255,80,80,0.08)",
+          color: "#ff7777",
+          cursor: "pointer",
+        }}
+      >
+        Delete
+      </button>
+    </div>
+  ))
+}
                     </div>
                   )}
                 </div>
