@@ -6853,7 +6853,7 @@ function handleCountryChange(
                   )}
                 </div>
 
-                <button className="generate-button" style={{ width: "100%", marginTop: "30px" }} disabled={creatorRenderLoading || creatorSaving} onClick={handleCreatorRender}>{creatorRenderLoading ? "Rendering video..." : " Generate Video"}</button>
+                <button type="button" className="generate-button" style={{ width: "100%", marginTop: "30px", cursor: "pointer" }} onClick={handleCreatorRender}>{creatorRenderLoading ? "Rendering video..." : " Generate Video"}</button>
                 {creatorRenderError && <div className="error" style={{ marginTop: "15px" }}>{creatorRenderError}</div>}
               </section>
 
@@ -6880,6 +6880,7 @@ function handleCountryChange(
 
 
 export default App;
+
 
 
 
