@@ -314,15 +314,45 @@ const [studentStatusFilter, setStudentStatusFilter] = useState("all");
 
 async function saveStudent() {
     if (!selectedCourse || studentSaving) return;
-    if (!studentForm.matric_number.trim() || !studentForm.first_name.trim() || !studentForm.last_name.trim()) {
-      setStudentsError("Matric number, first name, and last name are required.");
+
+    const matricNumber = studentForm.matric_number.trim();
+    const firstName = studentForm.first_name.trim();
+    const lastName = studentForm.last_name.trim();
+    const email = studentForm.email.trim();
+
+    if (!email || !matricNumber || !firstName || !lastName) {
+      setStudentsError("Email, matric number, first name and last name are required.");
       return;
     }
+
     setStudentSaving(true);
     setStudentsError("");
+
     try {
-      await addLecturerStudent(selectedCourse.course_offering_id, { matric_number: studentForm.matric_number.trim(), first_name: studentForm.first_name.trim(), middle_name: studentForm.middle_name.trim() || null, last_name: studentForm.last_name.trim(), level: studentForm.level.trim() || null, entry_year: studentForm.entry_year === "" ? null : Number(studentForm.entry_year), graduation_year: studentForm.graduation_year === "" ? null : Number(studentForm.graduation_year), email: studentForm.email.trim() || null, phone: studentForm.phone.trim() || null });
-      setStudentForm({ matric_number: "", first_name: "", middle_name: "", last_name: "", email: "", level: "100", entry_year: "", graduation_year: "", phone: "" });
+      await addLecturerStudent(selectedCourse.course_offering_id, {
+        matric_number: matricNumber,
+        first_name: firstName,
+        middle_name: studentForm.middle_name.trim() || null,
+        last_name: lastName,
+        email: email,
+        level: studentForm.level.trim() || null,
+        entry_year: studentForm.entry_year === "" ? null : Number(studentForm.entry_year),
+        graduation_year: studentForm.graduation_year === "" ? null : Number(studentForm.graduation_year),
+        phone: studentForm.phone.trim() || null
+      });
+
+      setStudentForm({
+        matric_number: "",
+        first_name: "",
+        middle_name: "",
+        last_name: "",
+        email: "",
+        level: "100",
+        entry_year: "",
+        graduation_year: "",
+        phone: ""
+      });
+
       setShowAddStudentForm(false);
       await openStudents(selectedCourse);
     } catch (err) {
@@ -331,7 +361,6 @@ async function saveStudent() {
       setStudentSaving(false);
     }
   }
-
   async function previewStudentImportFile() {
     if (!selectedCourse || !studentImportFile || studentImportLoading) return;
     setStudentImportLoading(true);
