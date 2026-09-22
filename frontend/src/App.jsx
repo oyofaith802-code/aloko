@@ -928,6 +928,56 @@ setError(err.message || "Failed to load business workspace.");
    APP
 ========================================================= */
 
+function AlokoServiceIcon({ type, size = 28 }) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": "true",
+  };
+
+  if (type === "creator") return (
+    <svg {...common}>
+      <rect x="3" y="5" width="18" height="14" rx="3" />
+      <path d="m10 9 5 3-5 3V9Z" />
+    </svg>
+  );
+
+  if (type === "voice") return (
+    <svg {...common}>
+      <rect x="8" y="3" width="8" height="12" rx="4" />
+      <path d="M5 11a7 7 0 0 0 14 0" />
+      <path d="M12 18v3M8 21h8" />
+    </svg>
+  );
+
+  if (type === "translator") return (
+    <svg {...common}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3c3 3 3 15 0 18" />
+      <path d="M7 8h6M11 6l2 2-2 2" />
+    </svg>
+  );
+
+  if (type === "business") return (
+    <svg {...common}>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M8 20v-5h3v5M8 9h2M14 9h2M14 13h2" />
+    </svg>
+  );
+
+  return (
+    <svg {...common}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  );
+}
 function App() {
 
   /* =======================================================
@@ -6954,7 +7004,7 @@ async function handleCreateAvatar() {
                   )}
                 </div>
 
-                <button type="button" className="generate-button" style={{ width: "100%", marginTop: "30px", cursor: "pointer", opacity: 1 }} onClick={handleCreatorRender}>🎬 Generate Video</button>
+                <button type="button" className="generate-button" style={{ width: "100%", marginTop: "30px", cursor: "pointer", opacity: 1 }} onClick={handleCreatorRender}>Generate Video</button>
                 {creatorRenderError && <div className="error" style={{ marginTop: "15px" }}>{creatorRenderError}</div>}
               </section>
 
@@ -6981,28 +7031,5 @@ async function handleCreateAvatar() {
 
 
 export default App;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
