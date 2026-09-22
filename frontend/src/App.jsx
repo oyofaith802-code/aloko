@@ -6761,7 +6761,24 @@ function handleCountryChange(
       </select>
     ) : (
       <div style={{ marginTop: "12px", padding: "14px", borderRadius: "10px", background: "rgba(255,180,80,0.08)" }}>
-        No ready personal voice is available yet. Create and finish your Personal Voice first.
+        <div style={{ marginBottom: "10px" }}>
+          No personal voice is ready yet. Record your voice and save it to your Aloko voice library.
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setPage("voice-test")}
+          style={{
+            padding: "11px 16px",
+            borderRadius: "10px",
+            border: "1px solid rgba(141,149,255,.45)",
+            background: "rgba(141,149,255,.12)",
+            color: "inherit",
+            cursor: "pointer"
+          }}
+        >
+          🎙 Record & Save Personal Voice
+        </button>
       </div>
     )
   )}
@@ -6863,6 +6880,7 @@ function handleCountryChange(
 
 
 export default App;
+
 
 
 
