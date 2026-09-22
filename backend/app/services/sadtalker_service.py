@@ -1,7 +1,11 @@
+﻿import os
 # app/services/sadtalker_service.py
 
 import shutil
 import subprocess
+import urllib.request
+import json
+import time
 import uuid
 from pathlib import Path
 
@@ -11,17 +15,25 @@ from pathlib import Path
 # ============================================================
 
 BACKEND_DIR = Path(
-    r"C:\Users\USER\Desktop\aloko\backend"
+    os.getenv(
+        "ALOKO_BACKEND_DIR",
+        str(Path(__file__).resolve().parents[2]),
+    )
 )
 
 SADTALKER_DIR = Path(
-    r"C:\Users\USER\Desktop\aloko\SadTalker"
+    os.getenv(
+        "SADTALKER_DIR",
+        str(BACKEND_DIR.parent / "SadTalker"),
+    )
 )
 
 SADTALKER_PYTHON = Path(
-    r"C:\Users\USER\anaconda3\envs\sadtalker\python.exe"
+    os.getenv(
+        "SADTALKER_PYTHON",
+        r"C:\Users\USER\anaconda3\envs\sadtalker\python.exe",
+    )
 )
-
 INFERENCE_SCRIPT = (
     SADTALKER_DIR / "inference.py"
 )
@@ -43,11 +55,11 @@ VIDEO_STORAGE_DIR = (
 )
 
 FFMPEG_PATH = Path(
-    r"C:\Users\USER\AppData\Local\Microsoft\WinGet"
-    r"\Packages\Gyan.FFmpeg.Shared_Microsoft.Winget.Source_8wekyb3d8bbwe"
-    r"\ffmpeg-9.0.1-full_build-shared\bin\ffmpeg.exe"
+    os.getenv(
+        "FFMPEG_PATH",
+        r"C:\Users\USER\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg.Shared_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-9.0.1-full_build-shared\bin\ffmpeg.exe",
+    )
 )
-
 
 # ============================================================
 # CREATE DIRECTORIES
@@ -231,287 +243,181 @@ def find_new_sadtalker_video(
 # MAIN SADTALKER FUNCTION
 # ============================================================
 
+
 def generate_sadtalker_video(
     image_path: str,
     audio_path: str,
 ) -> str:
 
-    print()
-    print("========================================")
-    print("Starting SadTalker")
-    print("========================================")
-    print()
-
-    # --------------------------------------------------------
-    # Validate dependencies
-    # --------------------------------------------------------
-
-    validate_dependencies()
-
-    # --------------------------------------------------------
-    # Validate image
-    # --------------------------------------------------------
+    service_url = os.getenv(
+        "SADTALKER_SERVICE_URL",
+        "http://127.0.0.1:8001",
+    ).rstrip("/")
 
     source_image = validate_file(
         image_path,
         "Source avatar image",
     )
 
-    # --------------------------------------------------------
-    # Convert audio
-    # --------------------------------------------------------
-
-    driven_audio = convert_audio_to_wav(
-        audio_path
-    )
-
-    driven_audio_path = validate_file(
-        driven_audio,
-        "SadTalker audio",
-    )
-
-    # --------------------------------------------------------
-    # Remember existing output files
-    # --------------------------------------------------------
-
-    existing_files = set(
-        RESULTS_DIR.glob("*.mp4")
-    )
-
-    # --------------------------------------------------------
-    # SadTalker command
-    # --------------------------------------------------------
-
-    command = [
-        str(SADTALKER_PYTHON),
-
-        str(INFERENCE_SCRIPT),
-
-        "--driven_audio",
-        str(driven_audio_path),
-
-        "--source_image",
-        str(source_image),
-
-        "--result_dir",
-        str(RESULTS_DIR),
-
-        "--still",
-
-        "--preprocess",
-        "full",
-
-        "--cpu",
-    ]
-
-    print("SadTalker command:")
-    print()
-
-    print(
-        " ".join(
-            f'"{part}"'
-            if " " in part
-            else part
-            for part in command
-        )
+    source_audio = validate_file(
+        audio_path,
+        "Input audio",
     )
 
     print()
     print("========================================")
-    print("Running SadTalker...")
+    print("Connecting to Aloko SadTalker Service")
     print("========================================")
+    print(f"Service: {service_url}")
     print()
 
-    # --------------------------------------------------------
-    # RUN SADTALKER
-    #
-    # IMPORTANT:
-    # We intentionally capture stdout/stderr so that
-    # the real SadTalker error is returned instead of
-    # only showing "exit status 1".
-    # --------------------------------------------------------
+    boundary = uuid.uuid4().hex.encode()
 
-    result = subprocess.run(
-        command,
-        cwd=str(SADTALKER_DIR),
-        capture_output=True,
-        text=True,
+    def add_file(field_name: str, path: Path):
+        filename = path.name
+        content = path.read_bytes()
+
+        parts = []
+        parts.append(
+            b"--" + boundary + b"\r\n"
+        )
+        parts.append(
+            (
+                f'Content-Disposition: form-data; '
+                f'name="{field_name}"; filename="{filename}"\r\n'
+            ).encode()
+        )
+        parts.append(
+            b"Content-Type: application/octet-stream\r\n\r\n"
+        )
+        parts.append(content)
+        parts.append(b"\r\n")
+
+        return b"".join(parts)
+
+    body = b"".join(
+        [
+            add_file("avatar", source_image),
+            add_file("audio", source_audio),
+            b"--" + boundary + b"--\r\n",
+        ]
     )
 
-    # --------------------------------------------------------
-    # PRINT FULL OUTPUT
-    # --------------------------------------------------------
-
-    print()
-    print("========================================")
-    print("SADTALKER STDOUT")
-    print("========================================")
-
-    if result.stdout:
-        print(result.stdout)
-    else:
-        print("(no stdout)")
-
-    print()
-    print("========================================")
-    print("SADTALKER STDERR")
-    print("========================================")
-
-    if result.stderr:
-        print(result.stderr)
-    else:
-        print("(no stderr)")
-
-    print()
-    print("========================================")
-    print(
-        f"SadTalker return code: {result.returncode}"
-    )
-    print("========================================")
-    print()
-
-    # --------------------------------------------------------
-    # Handle SadTalker failure
-    # --------------------------------------------------------
-
-    if result.returncode != 0:
-
-        stdout_tail = (
-            result.stdout[-8000:]
-            if result.stdout
-            else "(no stdout)"
-        )
-
-        stderr_tail = (
-            result.stderr[-8000:]
-            if result.stderr
-            else "(no stderr)"
-        )
-
-        raise RuntimeError(
-            "SadTalker failed.\n\n"
-
-            "================ STDOUT ================\n"
-            f"{stdout_tail}\n\n"
-
-            "================ STDERR ================\n"
-            f"{stderr_tail}"
-        )
-
-    # --------------------------------------------------------
-    # Find generated video
-    # --------------------------------------------------------
-
-    generated_video = (
-        find_new_sadtalker_video(
-            existing_files
-        )
-    )
-
-    if generated_video is None:
-
-        # Sometimes SadTalker may overwrite/reuse a result.
-        # In that case, look for the newest MP4.
-
-        all_mp4_files = list(
-            RESULTS_DIR.glob("*.mp4")
-        )
-
-        if all_mp4_files:
-
-            all_mp4_files.sort(
-                key=lambda path: path.stat().st_mtime,
-                reverse=True,
-            )
-
-            generated_video = (
-                all_mp4_files[0]
-            )
-
-    # --------------------------------------------------------
-    # Make sure output exists
-    # --------------------------------------------------------
-
-    if generated_video is None:
-
-        raise RuntimeError(
-            "SadTalker completed successfully, "
-            "but no MP4 video was found in:\n"
-            f"{RESULTS_DIR}"
-        )
-
-    if not generated_video.exists():
-
-        raise RuntimeError(
-            "SadTalker output video does not exist:\n"
-            f"{generated_video}"
-        )
-
-    if generated_video.stat().st_size == 0:
-
-        raise RuntimeError(
-            "SadTalker created an empty video:\n"
-            f"{generated_video}"
-        )
-
-    # --------------------------------------------------------
-    # Copy final video into Aloko storage
-    # --------------------------------------------------------
-
-    final_filename = (
-        f"{uuid.uuid4()}.mp4"
-    )
-
-    final_path = (
-        VIDEO_STORAGE_DIR
-        / final_filename
+    request = urllib.request.Request(
+        f"{service_url}/generate",
+        data=body,
+        method="POST",
+        headers={
+            "Content-Type": (
+                f"multipart/form-data; boundary={boundary.decode()}"
+            ),
+        },
     )
 
     try:
-
-        shutil.copy2(
-            generated_video,
-            final_path,
-        )
-
-    except OSError as exc:
-
+        with urllib.request.urlopen(request, timeout=60) as response:
+            payload = json.loads(
+                response.read().decode("utf-8")
+            )
+    except Exception as exc:
         raise RuntimeError(
-            "Failed to copy SadTalker video "
-            "into Aloko storage."
+            "Could not connect to SadTalker service: "
+            f"{exc}"
         ) from exc
 
-    # --------------------------------------------------------
-    # Validate copied video
-    # --------------------------------------------------------
+    job_id = payload.get("job_id")
 
-    if not final_path.exists():
-
+    if not job_id:
         raise RuntimeError(
-            "Final Aloko video was not created."
+            f"SadTalker service returned an invalid response: {payload}"
         )
 
-    if final_path.stat().st_size == 0:
+    print(f"SadTalker job: {job_id}")
+    print()
 
-        raise RuntimeError(
-            "Final Aloko video is empty."
+    # Poll the dedicated SadTalker service.
+    while True:
+
+        try:
+            with urllib.request.urlopen(
+                f"{service_url}/jobs/{job_id}",
+                timeout=30,
+            ) as response:
+                status = json.loads(
+                    response.read().decode("utf-8")
+                )
+        except Exception as exc:
+            raise RuntimeError(
+                "Lost connection to SadTalker service: "
+                f"{exc}"
+            ) from exc
+
+        progress = status.get("progress", 0)
+        stage = status.get("stage", "Processing")
+        job_status = status.get("status")
+
+        print(
+            f"SadTalker {progress}% - {stage}",
+            flush=True,
         )
 
-    # --------------------------------------------------------
-    # Final output
-    # --------------------------------------------------------
+        if job_status == "completed":
 
-    print()
-    print("========================================")
-    print("SadTalker video created successfully")
-    print("========================================")
-    print()
-    print(
-        f"SadTalker output: {generated_video}"
-    )
-    print(
-        f"Aloko video:      {final_path}"
-    )
-    print()
+            video_url = status.get("video")
 
-    return str(final_path)
+            if not video_url:
+                raise RuntimeError(
+                    "SadTalker completed but returned no video URL."
+                )
+
+            if video_url.startswith("/"):
+                video_url = service_url + video_url
+
+            final_filename = f"{uuid.uuid4()}.mp4"
+            final_path = (
+                VIDEO_STORAGE_DIR / final_filename
+            )
+
+            try:
+                urllib.request.urlretrieve(
+                    video_url,
+                    str(final_path),
+                )
+            except Exception as exc:
+                raise RuntimeError(
+                    "SadTalker completed, but Aloko could not "
+                    f"download the generated MP4: {exc}"
+                ) from exc
+
+            if not final_path.exists():
+                raise RuntimeError(
+                    "Generated MP4 was not saved to Aloko storage."
+                )
+
+            if final_path.stat().st_size == 0:
+                raise RuntimeError(
+                    "Generated MP4 is empty."
+                )
+
+            print()
+            print("========================================")
+            print("SadTalker video created successfully")
+            print("========================================")
+            print(f"Aloko video: {final_path}")
+            print()
+
+            return str(final_path)
+
+        if job_status == "failed":
+
+            error = status.get(
+                "error",
+                "Unknown SadTalker error",
+            )
+
+            raise RuntimeError(
+                f"SadTalker generation failed: {error}"
+            )
+
+        time.sleep(3)
+
