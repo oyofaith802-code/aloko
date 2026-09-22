@@ -3,6 +3,7 @@
 import os
 import uuid
 from pathlib import Path
+from urllib.request import Request, urlopen
 
 from fastapi import (
     APIRouter,
@@ -68,6 +69,57 @@ def get_avatar_file_path(
 
     # Handle full URLs such as:
     # https://aloko.onrender.com/storage/avatars/example.jpg
+    if normalized.startswith(("http://", "https://")):
+        filename = Path(
+            normalized.split("?", 1)[0]
+        ).name
+
+        if not filename:
+            raise HTTPException(
+                status_code=404,
+                detail="Avatar image filename is missing.",
+            )
+
+        cache_dir = STORAGE_DIR / "avatars" / "remote_cache"
+        cache_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        cached_path = cache_dir / filename
+
+        if cached_path.exists():
+            return str(cached_path.resolve())
+
+        try:
+            request = Request(
+                normalized,
+                headers={
+                    "User-Agent": "Aloko-Creator/1.0",
+                },
+            )
+
+            with urlopen(
+                request,
+                timeout=30,
+            ) as response:
+                data = response.read()
+
+            if not data:
+                raise RuntimeError(
+                    "Downloaded avatar file is empty."
+                )
+
+            cached_path.write_bytes(data)
+
+            return str(cached_path.resolve())
+
+        except Exception as exc:
+            raise HTTPException(
+                status_code=404,
+                detail="Avatar image could not be downloaded.",
+            ) from exc
+
     storage_marker = "/storage/"
 
     if storage_marker in normalized:
