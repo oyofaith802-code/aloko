@@ -31,6 +31,7 @@ from app.services.personal_voice_service import (
 )
 from app.services.video_compositor import (
     combine_videos,
+    apply_scene_effects,
 )
 
 
@@ -275,6 +276,7 @@ async def render_creator_project(
     db.commit()
 
     scene_video_paths = []
+    scene_transitions = []
     scene_results = []
 
     try:
@@ -592,8 +594,52 @@ async def render_creator_project(
                     "was not found."
                 )
 
+            # =================================================
+            # APPLY SCENE EFFECTS
+            # =================================================
+
+            print(
+                f"Applying scene settings "
+                f"for Scene {scene.scene_order}..."
+            )
+
+            processed_scene_video = apply_scene_effects(
+                scene_video,
+                camera=scene.camera,
+                captions_enabled=bool(
+                    scene.captions_enabled
+                ),
+                caption_text=script,
+            )
+
+            if not processed_scene_video:
+                raise RuntimeError(
+                    f"Scene effects processor returned "
+                    f"no video for Scene "
+                    f"{scene.scene_order}."
+                )
+
+            processed_scene_video = os.path.abspath(
+                processed_scene_video
+            )
+
+            if not os.path.exists(
+                processed_scene_video
+            ):
+                raise RuntimeError(
+                    f"Processed scene video for "
+                    f"Scene {scene.scene_order} "
+                    "was not found."
+                )
+
             scene_video_paths.append(
-                scene_video
+                processed_scene_video
+            )
+
+            # Transition applies between this scene
+            # and the following scene.
+            scene_transitions.append(
+                scene.transition or "Cut"
             )
 
             # =================================================
@@ -649,7 +695,8 @@ async def render_creator_project(
         )
 
         final_path = combine_videos(
-            scene_video_paths
+            scene_video_paths,
+            transitions=scene_transitions[:-1],
         )
 
         final_path = os.path.abspath(
