@@ -3073,15 +3073,22 @@ async function handleCreateAvatar() {
           setAiDirectorAvatarId(String(firstScene.avatar_id));
         }
 
-        if (firstScene?.voice_id) {
+        if (data?.voice_mode === "personal") {
           setCreatorVoiceType("personal");
-          setCreatorSelectedPersonalVoice(String(firstScene.voice_id));
-        } else if (firstScene?.voice) {
+          setCreatorSelectedPersonalVoice(
+            data?.voice_id ? String(data.voice_id) : ""
+          );
+        } else if (data?.voice_mode === "builtin") {
           setCreatorVoiceType("built_in");
-          setSelectedVoice(firstScene.voice);
+          setCreatorSelectedPersonalVoice("");
+          if (data?.voice) {
+            setSelectedVoice(data.voice);
+          }
+        } else if (data?.voice_mode === "none") {
+          setCreatorVoiceType("built_in");
+          setCreatorSelectedPersonalVoice("");
         }
-
-        setPage("video");
+setPage("video");
       }
     } catch (err) {
       setAiDirectorError(
@@ -7025,6 +7032,8 @@ async function handleCreateAvatar() {
 
 
 export default App;
+
+
 
 
 
