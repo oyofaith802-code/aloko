@@ -4021,6 +4021,45 @@ setAuthError("");
 
                   {authMode ===
                   "login" ? (
+                    <>
+
+                    <div
+                      style={{
+                        marginTop: "18px",
+                        padding: "12px",
+                        textAlign: "center",
+                        borderRadius: "10px",
+                        background: "rgba(255,255,255,0.05)",
+                        fontSize: "13px",
+                        lineHeight: "1.6",
+                      }}
+                    >
+                      <strong>Need help?</strong>
+                      <br />
+                      Forgot your password or having trouble?
+                      <br />
+                      <a
+                        href="tel:+2348113019723"
+                        style={{
+                          color: "inherit",
+                          fontWeight: 600,
+                          textDecoration: "none",
+                        }}
+                      >
+                        ?? +234 811 301 9723
+                      </a>
+                      <br />
+                      <a
+                        href="mailto:solomonenamudu@gmail.com"
+                        style={{
+                          color: "inherit",
+                          fontWeight: 600,
+                          textDecoration: "none",
+                        }}
+                      >
+                        ?? solomonenamudu@gmail.com
+                      </a>
+                    </div>
 
                     <p>
                       Don't have an
@@ -4053,6 +4092,8 @@ setAuthError("");
                         Sign up
                       </button>
                     </p>
+
+                    </>
 
                   ) : (
 
@@ -6722,6 +6763,7 @@ setAuthError("");
 
 
 export default App;
+
 
 
 
