@@ -1,4 +1,4 @@
-import os
+﻿import os
 import uuid
 from pathlib import Path
 
@@ -301,40 +301,15 @@ async def upload_voice(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Save and clone a user's personal voice.
+    """Save a user's personal voice recording to the Aloko voice library."""
 
-    Flow:
-
-        uploaded recording
-            ?
-        local storage
-            ?
-        ElevenLabs voice cloning
-            ?
-        provider_voice_id
-            ?
-        status = ready
-    """
-
-    # --------------------------------------------------------
-    # VALIDATE NAME
-    # --------------------------------------------------------
-
-    clean_name = name.strip()
-
-    if not clean_name:
-        clean_name = "My Personal Voice"
+    clean_name = name.strip() or "My Personal Voice"
 
     if len(clean_name) > 100:
         raise HTTPException(
             status_code=400,
             detail="Voice name must be 100 characters or less.",
         )
-
-    # --------------------------------------------------------
-    # VALIDATE FILE
-    # --------------------------------------------------------
 
     original_filename = audio.filename or ""
 
@@ -355,10 +330,6 @@ async def upload_voice(
             ),
         )
 
-    # --------------------------------------------------------
-    # READ AUDIO
-    # --------------------------------------------------------
-
     try:
         file_data = await audio.read()
     except Exception as exc:
@@ -373,29 +344,15 @@ async def upload_voice(
             detail="Audio file is empty.",
         )
 
-    # --------------------------------------------------------
-    # VALIDATE FILE SIZE
-    # --------------------------------------------------------
-
     if len(file_data) > MAX_AUDIO_SIZE:
         raise HTTPException(
             status_code=413,
             detail="Audio file must be 25 MB or smaller.",
         )
 
-    # --------------------------------------------------------
-    # GENERATE SAFE UNIQUE FILENAME
-    # --------------------------------------------------------
-
     filename = f"{uuid.uuid4().hex}{extension}"
-
     file_path = UPLOAD_DIR / filename
-
     audio_url = f"/storage/voices/{filename}"
-
-    # --------------------------------------------------------
-    # SAVE AUDIO LOCALLY
-    # --------------------------------------------------------
 
     try:
         file_path.write_bytes(file_data)
@@ -405,9 +362,11 @@ async def upload_voice(
             detail="Failed to save audio file.",
         ) from exc
 
-    # --------------------------------------------------------
-    # CLONE VOICE WITH ELEVENLABS
-    # --------------------------------------------------------
+    # Save the recording first.
+    # Provider cloning must never prevent the recording from being saved.
+    provider_voice_id = None
+    voice_status = "recorded"
+    cloning_message = "Voice recording saved successfully."
 
     try:
         provider_voice_id = clone_voice(
@@ -415,33 +374,18 @@ async def upload_voice(
             audio_bytes=file_data,
         )
 
-    except Exception as exc:
-        # The local recording must not remain as a misleading
-        # personal voice if provider cloning fails.
-        try:
-            file_path.unlink(missing_ok=True)
-        except OSError:
-            pass
+        if provider_voice_id:
+            voice_status = "ready"
+            cloning_message = "Personal voice saved and cloned successfully."
 
-        raise HTTPException(
-            status_code=502,
-            detail=f"Personal voice cloning failed: {str(exc)}",
-        ) from exc
-
-    if not provider_voice_id:
-        try:
-            file_path.unlink(missing_ok=True)
-        except OSError:
-            pass
-
-        raise HTTPException(
-            status_code=502,
-            detail="Personal voice cloning failed: no provider voice ID returned.",
+    except Exception:
+        # Keep the user's recording even when the provider rejects cloning.
+        provider_voice_id = None
+        voice_status = "recorded"
+        cloning_message = (
+            "Personal voice recording saved successfully. "
+            "AI voice cloning is not currently available for this voice."
         )
-
-    # --------------------------------------------------------
-    # CREATE DATABASE RECORD
-    # --------------------------------------------------------
 
     voice = Voice(
         user_id=current_user.id,
@@ -449,14 +393,13 @@ async def upload_voice(
         voice_type="custom",
         audio_url=audio_url,
         provider_voice_id=provider_voice_id,
-        status="ready",
+        status=voice_status,
     )
 
     try:
         db.add(voice)
         db.commit()
         db.refresh(voice)
-
     except Exception as exc:
         db.rollback()
 
@@ -470,12 +413,8 @@ async def upload_voice(
             detail="Failed to save custom voice.",
         ) from exc
 
-    # --------------------------------------------------------
-    # READY
-    # --------------------------------------------------------
-
     return {
-        "message": "Personal voice cloned successfully.",
+        "message": cloning_message,
         "voice_id": voice.id,
         "user_id": voice.user_id,
         "name": voice.name,
@@ -483,52 +422,8 @@ async def upload_voice(
         "status": voice.status,
         "provider_voice_id": voice.provider_voice_id,
         "audio_url": voice.audio_url,
-        "cloning_available": True,
+        "cloning_available": bool(provider_voice_id),
     }
-
-@router.get("/me")
-def get_my_voices(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Return only custom voices belonging to
-    the authenticated user.
-    """
-
-    voices = (
-        db.query(Voice)
-        .filter(
-            Voice.user_id == current_user.id
-        )
-        .order_by(
-            Voice.id.desc()
-        )
-        .all()
-    )
-
-    return [
-        {
-            "id": voice.id,
-
-            "name": voice.name,
-
-            "voice_type": voice.voice_type,
-
-            "audio_url": voice.audio_url,
-
-            "provider_voice_id": (
-                voice.provider_voice_id
-            ),
-
-            "status": voice.status,
-
-            "created_at": voice.created_at,
-        }
-
-        for voice in voices
-    ]
-
 
 # ============================================================
 # GET SINGLE CUSTOM VOICE
