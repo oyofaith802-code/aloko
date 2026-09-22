@@ -1220,6 +1220,8 @@ setAuthError("");
   const [translatorFile, setTranslatorFile] =
     useState(null);
 
+  const translatorFileInputRef = useRef(null);
+
   const [translatorTargetLanguage, setTranslatorTargetLanguage] =
     useState("en");
 
@@ -2544,31 +2546,55 @@ setAuthError("");
       translatorLanguageLocales,
       translatorCountry,
     ]);
-
-
   const translatorVoices =
     useMemo(() => {
 
-      return voices.filter(
-        voice =>
-          voice.language ===
-            translatorTargetLanguage &&
-          (
-            !translatorCountry ||
-            voice.country ===
-              translatorCountry
-          ) &&
-          (
-            !translatorAccent ||
-            voice.accent ===
-              translatorAccent
-          ) &&
-          (
+      const languageVoices =
+        voices.filter(
+          voice =>
+            voice.language ===
+            translatorTargetLanguage
+        );
+
+      if (
+        !translatorCountry &&
+        !translatorAccent &&
+        !translatorGender
+      ) {
+        return languageVoices;
+      }
+
+      const exactVoices =
+        languageVoices.filter(
+          voice =>
+            (
+              !translatorCountry ||
+              voice.country === translatorCountry
+            ) &&
+            (
+              !translatorAccent ||
+              voice.accent === translatorAccent
+            ) &&
+            (
+              !translatorGender ||
+              voice.gender === translatorGender
+            )
+        );
+
+      if (exactVoices.length > 0) {
+        return exactVoices;
+      }
+
+      const genderVoices =
+        languageVoices.filter(
+          voice =>
             !translatorGender ||
-            voice.gender ===
-              translatorGender
-          )
-      );
+            voice.gender === translatorGender
+        );
+
+      return genderVoices.length > 0
+        ? genderVoices
+        : languageVoices;
 
     }, [
       voices,
@@ -2610,6 +2636,15 @@ setAuthError("");
   ]);
 
 
+  function clearTranslatorOutput() {
+    setTranslatorResult(null);
+    setTranslatorError("");
+    setTranslatorFile(null);
+
+    if (translatorFileInputRef.current) {
+      translatorFileInputRef.current.value = "";
+    }
+  }
   function clearTranslatorPreview() {
 
     setTranslatorPreviewAudioUrl(
@@ -6687,6 +6722,9 @@ setAuthError("");
 
 
 export default App;
+
+
+
 
 
 
