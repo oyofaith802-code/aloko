@@ -54,7 +54,7 @@ export default function LecturerDashboard({ onBack }) {
   const [studentsError, setStudentsError] = useState("");
   const [showAddStudentForm, setShowAddStudentForm] = useState(false);
   const [studentSaving, setStudentSaving] = useState(false);
-  const [studentForm, setStudentForm] = useState({ matric_number: "", first_name: "", middle_name: "", last_name: "", level: "100", entry_year: "", graduation_year: "", phone: "" });
+  const [studentForm, setStudentForm] = useState({ matric_number: "", first_name: "", middle_name: "", last_name: "", email: "", level: "100", entry_year: "", graduation_year: "", phone: "" });
   const [assessments, setAssessments] = useState([]);
   const [assessmentsLoading, setAssessmentsLoading] = useState(false);
   const [assessmentsError, setAssessmentsError] = useState("");
@@ -321,8 +321,8 @@ async function saveStudent() {
     setStudentSaving(true);
     setStudentsError("");
     try {
-      await addLecturerStudent(selectedCourse.course_offering_id, { matric_number: studentForm.matric_number.trim(), first_name: studentForm.first_name.trim(), middle_name: studentForm.middle_name.trim() || null, last_name: studentForm.last_name.trim(), level: studentForm.level.trim() || null, entry_year: studentForm.entry_year === "" ? null : Number(studentForm.entry_year), graduation_year: studentForm.graduation_year === "" ? null : Number(studentForm.graduation_year), phone: studentForm.phone.trim() || null });
-      setStudentForm({ matric_number: "", first_name: "", middle_name: "", last_name: "", level: "100", entry_year: "", graduation_year: "", phone: "" });
+      await addLecturerStudent(selectedCourse.course_offering_id, { matric_number: studentForm.matric_number.trim(), first_name: studentForm.first_name.trim(), middle_name: studentForm.middle_name.trim() || null, last_name: studentForm.last_name.trim(), level: studentForm.level.trim() || null, entry_year: studentForm.entry_year === "" ? null : Number(studentForm.entry_year), graduation_year: studentForm.graduation_year === "" ? null : Number(studentForm.graduation_year), email: studentForm.email.trim() || null, phone: studentForm.phone.trim() || null });
+      setStudentForm({ matric_number: "", first_name: "", middle_name: "", last_name: "", email: "", level: "100", entry_year: "", graduation_year: "", phone: "" });
       setShowAddStudentForm(false);
       await openStudents(selectedCourse);
     } catch (err) {
@@ -2925,6 +2925,7 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
                 <input placeholder="First Name *" value={studentForm.first_name} onChange={(e) => setStudentForm({ ...studentForm, first_name: e.target.value })} />
                 <input placeholder="Middle Name" value={studentForm.middle_name} onChange={(e) => setStudentForm({ ...studentForm, middle_name: e.target.value })} />
                 <input placeholder="Last Name *" value={studentForm.last_name} onChange={(e) => setStudentForm({ ...studentForm, last_name: e.target.value })} />
+                <input type="email" placeholder="Student Email" value={studentForm.email} onChange={(e) => setStudentForm({ ...studentForm, email: e.target.value })} />
                 <input placeholder="Level" value={studentForm.level} onChange={(e) => setStudentForm({ ...studentForm, level: e.target.value })} />
                 <input type="number" placeholder="Entry Year" value={studentForm.entry_year} onChange={(e) => setStudentForm({ ...studentForm, entry_year: e.target.value })} />
                 <input type="number" placeholder="Graduation Year" value={studentForm.graduation_year} onChange={(e) => setStudentForm({ ...studentForm, graduation_year: e.target.value })} />

@@ -3199,6 +3199,7 @@ setPage("video");
         script: "",
         avatar_id: selectedAvatarId ? Number(selectedAvatarId) : null,
         voice_id: creatorVoiceType === "personal" && creatorSelectedPersonalVoice ? Number(creatorSelectedPersonalVoice) : null,
+        voice: creatorVoiceType === "built_in" ? getDefaultCreatorVoice() : null,
         captions_enabled: true,
       });
       setCreatorScenes(previous => [...previous, scene]);
@@ -3245,6 +3246,14 @@ setPage("video");
     setError("");
     setCreatorRenderResult(null);
     try {
+      const voiceUpdates = creatorVoiceType === "personal"
+        ? { voice_id: Number(creatorSelectedPersonalVoice), voice: null }
+        : { voice_id: null, voice: getDefaultCreatorVoice() };
+
+      for (const scene of creatorScenes) {
+        await saveCreatorScene(scene.id, voiceUpdates);
+      }
+
       const data = await renderProject(creatorProject.id);
       setCreatorRenderResult(data);
     } catch (err) {
@@ -6997,7 +7006,7 @@ setPage("video");
                             <strong>Scene {scene.scene_order}</strong>
                             <button type="button" onClick={() => removeCreatorScene(scene.id)} disabled={creatorSaving} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#ff8f8f" }}>Delete</button>
                           </div>
-                          <textarea value={scene.script || ""} onChange={e => { const value=e.target.value; setCreatorScenes(prev => prev.map(item => item.id === scene.id ? {...item, script:value} : item)); }} onBlur={e => saveCreatorScene(scene.id, { script:e.target.value, avatar_id:selectedAvatarId ? Number(selectedAvatarId) : null, voice_id:creatorVoiceType === "personal" && creatorSelectedPersonalVoice ? Number(creatorSelectedPersonalVoice) : null, environment:creatorEnvironment })} maxLength={5000} rows={6} placeholder="Write what your avatar should say in this scene..." style={{ width: "100%", resize: "vertical" }} />
+                          <textarea value={scene.script || ""} onChange={e => { const value=e.target.value; setCreatorScenes(prev => prev.map(item => item.id === scene.id ? {...item, script:value} : item)); }} onBlur={e => saveCreatorScene(scene.id, { script:e.target.value, avatar_id:selectedAvatarId ? Number(selectedAvatarId) : null, voice_id:creatorVoiceType === "personal" && creatorSelectedPersonalVoice ? Number(creatorSelectedPersonalVoice) : null, voice:creatorVoiceType === "built_in" ? getDefaultCreatorVoice() : null, environment:creatorEnvironment })} maxLength={5000} rows={6} placeholder="Write what your avatar should say in this scene..." style={{ width: "100%", resize: "vertical" }} />
                           <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "12px", opacity: 0.65 }}><span>Avatar: {selectedAvatar?.name || "Not selected"}</span><span>{(scene.script || "").length}/5000</span></div>
                         </div>
                       ))}
