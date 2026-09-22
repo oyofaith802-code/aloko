@@ -4321,9 +4321,7 @@ async function handleCreateAvatar() {
                 }}
               >
 
-                <div className="feature-icon">
-                  
-                </div>
+                <div className="feature-icon"><AlokoServiceIcon type="creator" /></div>
 
                 <h3>
                   Create AI Video
@@ -4361,7 +4359,7 @@ async function handleCreateAvatar() {
               >
 
                 <div className="feature-icon">
-                  
+                  <AlokoServiceIcon type="voice" />
                 </div>
 
                 <h3>
@@ -4397,7 +4395,7 @@ async function handleCreateAvatar() {
               >
 
                 <div className="feature-icon">
-                  
+                  <AlokoServiceIcon type="translator" />
                 </div>
 
                 <h3>
@@ -4424,7 +4422,7 @@ async function handleCreateAvatar() {
               >
 
                 <div className="feature-icon">
-                  ðŸ¢
+                  <AlokoServiceIcon type="business" />
                 </div>
 
                 <h3>
@@ -5394,7 +5392,7 @@ async function handleCreateAvatar() {
               >
 
                 <div className="feature-icon">
-                  
+                  <AlokoServiceIcon type="voice" />
                 </div>
 
                 <h3>
@@ -5424,7 +5422,7 @@ async function handleCreateAvatar() {
               >
 
                 <div className="feature-icon">
-                  
+                  <AlokoServiceIcon type="translator" />
                 </div>
 
                 <h3>
@@ -5480,7 +5478,7 @@ async function handleCreateAvatar() {
               <div className="feature-card">
 
                 <div className="feature-icon">
-                  
+                  <AlokoServiceIcon type="photo" />
                 </div>
 
                 <h3>
@@ -5529,7 +5527,7 @@ async function handleCreateAvatar() {
               >
 
                 <div className="feature-icon">
-                  ðŸ¢
+                  <AlokoServiceIcon type="business" />
                 </div>
 
                 <h3>
@@ -5579,9 +5577,7 @@ async function handleCreateAvatar() {
 
               <div className="feature-card">
 
-                <div className="feature-icon">
-                  
-                </div>
+                <div className="feature-icon"><AlokoServiceIcon type="extract" /></div>
 
                 <h3>
                   AI Extract
@@ -7031,5 +7027,4 @@ async function handleCreateAvatar() {
 
 
 export default App;
-
 
