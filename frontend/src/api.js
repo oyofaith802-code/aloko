@@ -818,7 +818,7 @@ export async function getBusinessDatasets(
 ) {
 
   const response = await authFetch(
-    `${API_BASE_URL}/business/datasets?workspace_id=${Number(workspaceId)}`
+    `${API_BASE_URL}/business/workspaces/${Number(workspaceId)}/datasets`
   );
 
   return handleResponse(
@@ -914,7 +914,7 @@ export async function getBusinessReports(
 ) {
 
   const response = await authFetch(
-    `${API_BASE_URL}/business/reports?workspace_id=${Number(workspaceId)}`
+    `${API_BASE_URL}/business/workspaces/${Number(workspaceId)}/reports`
   );
 
   return handleResponse(
@@ -2218,3 +2218,15 @@ export async function importLecturerStudents(courseOfferingId, file, updateExist
 
 
 
+
+
+export async function deleteBusinessDataset(workspaceId, datasetId) {
+  const response = await authFetch(
+    `${API_BASE_URL}/business/workspaces/${Number(workspaceId)}/datasets/${Number(datasetId)}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  return handleResponse(response, "Failed to delete business dataset");
+}

@@ -493,7 +493,40 @@ function BusinessAIWorkspace({ onBack }) {
   const [datasets, setDatasets] = useState([]);
   const [selectedDataset, setSelectedDataset] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [deletingDatasetId, setDeletingDatasetId] = useState(null);
 
+
+  const handleDeleteDataset = async (dataset) => {
+    if (!dataset?.id || !workspaceId) return;
+
+    const confirmed = window.confirm(
+      `Delete "${dataset.name || dataset.original_filename || "this dataset"}"? This will permanently remove the uploaded file and its analysis table.`
+    );
+
+    if (!confirmed) return;
+
+    setDeletingDatasetId(dataset.id);
+    setError("");
+    setNotice("");
+
+    try {
+      await deleteBusinessDataset(workspaceId, dataset.id);
+
+      setDatasets((current) =>
+        current.filter((item) => item.id !== dataset.id)
+      );
+
+      if (selectedDataset?.id === dataset.id) {
+        setSelectedDataset(null);
+      }
+
+      setNotice("Dataset deleted successfully.");
+    } catch (err) {
+      setError(err.message || "Failed to delete dataset.");
+    } finally {
+      setDeletingDatasetId(null);
+    }
+  };
   const [question, setQuestion] = useState("");
   const [analysis, setAnalysis] = useState(null);
   const [asking, setAsking] = useState(false);
@@ -836,15 +869,41 @@ setError(err.message || "Failed to load business workspace.");
                 <div className="business-panel-heading business-section-heading"><div><span className="result-label">DATASETS</span><h2>Your business data</h2><p>CSV, Excel, PDF and DOCX ingestion is available in this workspace.</p></div><label className="business-upload-cta">{uploading ? "Uploading..." : "ï¼‹ Upload Dataset"}<input type="file" accept=".csv,.xlsx,.xls,.pdf,.docx" onChange={handleUpload} disabled={uploading} /></label></div>
                 <div className="business-dataset-grid">
                   {datasets.map((dataset) => (
-                    <button className="business-dataset-card" key={dataset.id} onClick={() => handleDatasetOpen(dataset)}>
-                      <div className="business-dataset-card-top"><span className="business-file-icon">{dataset.source_type === "pdf" || dataset.source_type === "docx" ? "" : ""}</span><span className="business-status">{dataset.status}</span></div>
-                      <h3>{dataset.name}</h3>
-                      <p>{dataset.original_filename}</p>
-                      <div className="business-dataset-meta"><span>{dataset.source_type?.toUpperCase()}</span><span>{dataset.row_count ? `${Number(dataset.row_count).toLocaleString()} rows` : "Document"}</span></div>
-                    </button>
+                    <div className="business-dataset-card" key={dataset.id}>
+                      <button
+                        type="button"
+                        className="business-dataset-card-main"
+                        onClick={() => handleDatasetOpen(dataset)}
+                      >
+                        <div className="business-dataset-card-top">
+                          <span className="business-file-icon">
+                            {dataset.source_type === "pdf" || dataset.source_type === "docx" ? "" : ""}
+                          </span>
+                          <span className="business-status">{dataset.status}</span>
+                        </div>
+                        <h3>{dataset.name}</h3>
+                        <p>{dataset.original_filename}</p>
+                        <div className="business-dataset-meta">
+                          <span>{dataset.source_type?.toUpperCase()}</span>
+                          <span>
+                            {dataset.row_count
+                              ? `${Number(dataset.row_count).toLocaleString()} rows`
+                              : "Document"}
+                          </span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="business-dataset-delete"
+                        onClick={() => handleDeleteDataset(dataset)}
+                        disabled={deletingDatasetId === dataset.id}
+                      >
+                        {deletingDatasetId === dataset.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
                   ))}
-                </div>
-                {selectedDataset && (
+                </div>                {selectedDataset && (
                   <div className="business-panel business-detail-panel">
                     <div className="business-panel-heading"><div><span className="result-label">DATASET DETAILS</span><h3>{selectedDataset.name}</h3></div><button onClick={() => setSelectedDataset(null)}>Close</button></div>
                     <div className="business-detail-grid"><div><span>Source</span><strong>{selectedDataset.source_type?.toUpperCase()}</strong></div><div><span>Rows</span><strong>{selectedDataset.row_count ? Number(selectedDataset.row_count).toLocaleString() : "-"}</strong></div><div><span>Status</span><strong>{selectedDataset.status}</strong></div><div><span>Table</span><strong>{selectedDataset.table_name || "Document"}</strong></div></div>
@@ -7043,6 +7102,8 @@ setPage("video");
 
 
 export default App;
+
+
 
 
 
