@@ -1,6 +1,7 @@
 ﻿import json
 import os
 import re
+import time
 
 import requests
 from dotenv import load_dotenv
@@ -995,15 +996,68 @@ Never return text outside the JSON object.
         ]
     }
 
-    response = requests.post(
-        GEMINI_API_URL.format(model=GEMINI_MODEL),
-        headers={
-            "x-goog-api-key": GEMINI_API_KEY,
-            "Content-Type": "application/json",
-        },
-        json=payload,
-        timeout=300,
+    gemini_url = GEMINI_API_URL.format(
+        model=GEMINI_MODEL
     )
+
+    headers = {
+        "x-goog-api-key": GEMINI_API_KEY,
+        "Content-Type": "application/json",
+    }
+
+    response = None
+    last_error = None
+
+    for attempt in range(3):
+        try:
+            response = requests.post(
+                gemini_url,
+                headers=headers,
+                json=payload,
+                timeout=300,
+            )
+
+            if response.status_code not in {
+                500,
+                503,
+                429,
+            }:
+                break
+
+            last_error = (
+                f"Gemini returned HTTP "
+                f"{response.status_code}: "
+                f"{response.text[:500]}"
+            )
+
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+
+        except requests.RequestException as exc:
+            last_error = str(exc)
+
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+            else:
+                raise
+
+    if response is None:
+        raise RuntimeError(
+            "Gemini request failed: "
+            + str(last_error)
+        )
+
+    if response.status_code in {
+        500,
+        503,
+        429,
+    }:
+        raise RuntimeError(
+            "Gemini service temporarily unavailable "
+            f"after 3 attempts: HTTP "
+            f"{response.status_code}. "
+            f"{response.text[:500]}"
+        )
 
     response.raise_for_status()
 
