@@ -825,6 +825,7 @@ setError(err.message || "Failed to load business workspace.");
                     <span className="result-label">BUSINESS INTELLIGENCE</span>
                     <h2>{workspace?.name || "Your business workspace"}</h2>
                     <p>{workspace?.description || "Your central place for business data, analysis, metrics and reports."}</p>
+                    <p className="business-upload-limits">Upload limits: maximum 10 MB per file and 300,000 rows for CSV/Excel files.</p>
                   </div>
                   <label className="business-upload-cta">
                     {uploading ? "Uploading..." : "ï¼‹ Upload Dataset"}
@@ -866,7 +867,7 @@ setError(err.message || "Failed to load business workspace.");
 
             {tab === "datasets" && (
               <section className="business-section-stack">
-                <div className="business-panel-heading business-section-heading"><div><span className="result-label">DATASETS</span><h2>Your business data</h2><p>CSV, Excel, PDF and DOCX ingestion is available in this workspace.</p></div><label className="business-upload-cta">{uploading ? "Uploading..." : "ï¼‹ Upload Dataset"}<input type="file" accept=".csv,.xlsx,.xls,.pdf,.docx" onChange={handleUpload} disabled={uploading} /></label></div>
+                <div className="business-panel-heading business-section-heading"><div><span className="result-label">DATASETS</span><h2>Your business data</h2><p>CSV, Excel, PDF and DOCX ingestion is available in this workspace.</p><p className="business-upload-limits">Upload limits: maximum 10 MB per file and 300,000 rows for CSV/Excel files.</p></div><label className="business-upload-cta">{uploading ? "Uploading..." : "ï¼‹ Upload Dataset"}<input type="file" accept=".csv,.xlsx,.xls,.pdf,.docx" onChange={handleUpload} disabled={uploading} /></label></div>
                 <div className="business-dataset-grid">
                   {datasets.map((dataset) => (
                     <div className="business-dataset-card" key={dataset.id}>

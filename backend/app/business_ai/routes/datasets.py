@@ -41,6 +41,10 @@ from app.business_ai.services.cleaning_engine import (
 )
 
 
+MAX_UPLOAD_SIZE_MB = 10
+MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
+MAX_TABULAR_ROWS = 300_000
+
 router = APIRouter(
     prefix="/business/datasets",
     tags=["Business AI - Datasets"],
@@ -85,7 +89,29 @@ async def upload_dataset(
             detail=str(exc),
         )
 
-    file_bytes = await file.read()
+    # ---------------------------------------------------------
+    # UPLOAD SIZE LIMIT
+    # ---------------------------------------------------------
+    file_bytes = bytearray()
+
+    while True:
+        chunk = await file.read(1024 * 1024)
+
+        if not chunk:
+            break
+
+        file_bytes.extend(chunk)
+
+        if len(file_bytes) > MAX_UPLOAD_SIZE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    f"File is too large. Business AI allows "
+                    f"maximum {MAX_UPLOAD_SIZE_MB} MB per file."
+                ),
+            )
+
+    file_bytes = bytes(file_bytes)
 
     if not file_bytes:
         raise HTTPException(
@@ -233,6 +259,17 @@ async def upload_dataset(
         if len(dataframe) == 0:
             raise ValueError(
                 "The dataset contains no rows."
+            )
+
+        if len(dataframe) > MAX_TABULAR_ROWS:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    "This dataset contains too many rows. "
+                    "Business AI allows a maximum of "
+                    f"{MAX_TABULAR_ROWS:,} rows for CSV, XLS, "
+                    "and XLSX files."
+                ),
             )
 
         # ---------------------------------------------------------
