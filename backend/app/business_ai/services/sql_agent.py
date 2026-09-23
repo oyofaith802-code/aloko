@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 import re
 
@@ -7,14 +7,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OLLAMA_URL = os.getenv(
-    "OLLAMA_URL",
-    "http://127.0.0.1:11434/api/chat",
-)
-
-OLLAMA_MODEL = os.getenv(
-    "OLLAMA_MODEL",
-    "llama3.2:latest",
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_MODEL = os.getenv(
+    "GEMINI_MODEL",
+    "gemini-3.8-flash",
 )
 
 
@@ -495,7 +492,7 @@ def _detect_revenue_question(
         "times",
         "quantity *",
         "quantity x",
-        "quantity ×",
+        "quantity Ã—",
         "quantity multiplied",
         "unitprice",
         "unit price",
@@ -723,7 +720,7 @@ def generate_sql(
 
     # ========================================================
     # IMPORTANT:
-    # Deterministic business intents run BEFORE Ollama.
+    # Deterministic business intents run BEFORE Gemini.
     # ========================================================
 
     count_result = _detect_count_question(
@@ -977,23 +974,34 @@ Never return code fences.
 Never return text outside the JSON object.
 """
 
+    if not GEMINI_API_KEY:
+        raise RuntimeError(
+            "GEMINI_API_KEY is not configured for Business AI."
+        )
+
     payload = {
-        "model": OLLAMA_MODEL,
-        "messages": [
-            {
-                "role": "system",
-                "content": system_prompt,
-            },
+        "contents": [
             {
                 "role": "user",
-                "content": question,
-            },
+                "parts": [
+                    {
+                        "text": (
+                            system_prompt
+                            + "\n\nUSER BUSINESS QUESTION:\n"
+                            + question
+                        )
+                    }
+                ],
+            }
         ],
-        "stream": False,
     }
 
     response = requests.post(
-        OLLAMA_URL,
+        GEMINI_API_URL.format(model=GEMINI_MODEL),
+        headers={
+            "x-goog-api-key": GEMINI_API_KEY,
+            "Content-Type": "application/json",
+        },
         json=payload,
         timeout=300,
     )
@@ -1004,8 +1012,10 @@ Never return text outside the JSON object.
 
     content = (
         data
-        .get("message", {})
-        .get("content", "")
+        .get("candidates", [{}])[0]
+        .get("content", {})
+        .get("parts", [{}])[0]
+        .get("text", "")
     )
 
     result = _extract_json(content)
