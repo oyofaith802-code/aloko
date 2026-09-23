@@ -1146,6 +1146,9 @@ setAuthError("");
   const [selectedVoice, setSelectedVoice] =
     useState("");
 
+  function getDefaultCreatorVoice() {
+    return selectedVoice || voices?.[0]?.tts_voice || "en-US-AriaNeural";
+  }
   const [previewingVoice, setPreviewingVoice] =
     useState(false);
 
@@ -7040,6 +7043,7 @@ setPage("video");
 
 
 export default App;
+
 
 
 
