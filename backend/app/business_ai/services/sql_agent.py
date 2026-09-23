@@ -720,7 +720,7 @@ def generate_sql(
 
     # ========================================================
     # IMPORTANT:
-    # Deterministic business intents run BEFORE Gemini.
+    # Deterministic business intents run BEFORE Ollama.
     # ========================================================
 
     count_result = _detect_count_question(
@@ -982,7 +982,6 @@ Never return text outside the JSON object.
     payload = {
         "contents": [
             {
-                "role": "user",
                 "parts": [
                     {
                         "text": (
@@ -991,9 +990,9 @@ Never return text outside the JSON object.
                             + question
                         )
                     }
-                ],
+                ]
             }
-        ],
+        ]
     }
 
     response = requests.post(
@@ -1045,3 +1044,4 @@ Never return text outside the JSON object.
         result["sql"] = None
 
     return result
+
