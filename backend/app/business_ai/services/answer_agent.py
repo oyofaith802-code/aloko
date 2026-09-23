@@ -7,14 +7,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OLLAMA_URL = os.getenv(
-    "OLLAMA_URL",
-    "http://127.0.0.1:11434/api/chat",
+GEMINI_API_URL = (
+    "https://generativelanguage.googleapis.com/"
+    "v1beta/models/{model}:generateContent"
 )
 
-OLLAMA_MODEL = os.getenv(
-    "OLLAMA_MODEL",
-    "llama3.2:latest",
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+GEMINI_MODEL = os.getenv(
+    "GEMINI_MODEL",
+    "gemini-3.8-flash",
 )
 
 
@@ -22,21 +24,21 @@ def _extract_json(text: str) -> dict:
     text = text.strip()
 
     text = re.sub(
-        r"^```(?:json)?\s*",
+        r"^```(?:json)?\\s*",
         "",
         text,
         flags=re.IGNORECASE,
     )
 
     text = re.sub(
-        r"\s*```$",
+        r"\\s*```$",
         "",
         text,
         flags=re.IGNORECASE,
     )
 
     match = re.search(
-        r"\{.*\}",
+        r"\\{.*\\}",
         text,
         flags=re.DOTALL,
     )
@@ -65,6 +67,11 @@ def generate_business_answer(
             "Question cannot be empty."
         )
 
+    if not GEMINI_API_KEY:
+        raise RuntimeError(
+            "GEMINI_API_KEY is not configured for Business AI."
+        )
+
     system_prompt = """
 You are Aloko Business Answer AI.
 
@@ -80,9 +87,7 @@ You MUST use ONLY the information contained in:
 3. The query results
 
 Never invent numbers.
-
 Never invent facts.
-
 Never claim information that is not supported by
 the query results.
 
@@ -124,38 +129,44 @@ If there are no meaningful caveats, return:
 "caveats": []
 
 Never return Markdown.
-
 Never return SQL as the answer.
-
 Never return code fences.
-
 Never return text outside the JSON object.
 """
 
+    user_content = json.dumps(
+        {
+            "question": question.strip(),
+            "sql": sql,
+            "results": summary,
+        },
+        default=str,
+    )
+
     payload = {
-        "model": OLLAMA_MODEL,
-        "messages": [
+        "contents": [
             {
-                "role": "system",
-                "content": system_prompt,
-            },
-            {
-                "role": "user",
-                "content": json.dumps(
+                "parts": [
                     {
-                        "question": question.strip(),
-                        "sql": sql,
-                        "results": summary,
-                    },
-                    default=str,
-                ),
-            },
-        ],
-        "stream": False,
+                        "text": (
+                            system_prompt
+                            + "\n\nBUSINESS ANALYSIS INPUT:\n"
+                            + user_content
+                        )
+                    }
+                ]
+            }
+        ]
     }
 
     response = requests.post(
-        OLLAMA_URL,
+        GEMINI_API_URL.format(
+            model=GEMINI_MODEL
+        ),
+        headers={
+            "x-goog-api-key": GEMINI_API_KEY,
+            "Content-Type": "application/json",
+        },
         json=payload,
         timeout=120,
     )
@@ -166,8 +177,10 @@ Never return text outside the JSON object.
 
     content = (
         data
-        .get("message", {})
-        .get("content", "")
+        .get("candidates", [{}])[0]
+        .get("content", {})
+        .get("parts", [{}])[0]
+        .get("text", "")
     )
 
     result = _extract_json(content)
