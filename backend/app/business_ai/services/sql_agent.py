@@ -213,6 +213,56 @@ def _find_real_table(
 # DETERMINISTIC RANKING DETECTION
 # ============================================================
 
+def _detect_count_question(
+    question: str,
+    schemas: list[dict],
+) -> dict | None:
+    normalized = re.sub(
+        r"\s+",
+        " ",
+        question.strip().lower(),
+    )
+
+    count_patterns = [
+        r"\bhow many\b",
+        r"\bnumber of\b",
+        r"\bcount of\b",
+        r"\btotal number\b",
+    ]
+
+    if not any(
+        re.search(pattern, normalized)
+        for pattern in count_patterns
+    ):
+        return None
+
+    if not schemas:
+        return None
+
+    table_name = str(
+        schemas[0].get("table_name") or ""
+    ).strip()
+
+    if not table_name:
+        return None
+
+    quoted_table = f'"{table_name}"'
+
+    sql = (
+        f"SELECT COUNT(*) AS record_count "
+        f"FROM {quoted_table}"
+    )
+
+    return {
+        "answerable": True,
+        "sql": sql,
+        "reason": (
+            "Deterministic row count generated "
+            "from the workspace dataset schema."
+        ),
+    }
+
+
 def _detect_record_ranking(
     question: str,
     schemas: list[dict],
@@ -675,6 +725,19 @@ def generate_sql(
     # IMPORTANT:
     # Deterministic business intents run BEFORE Ollama.
     # ========================================================
+
+    count_result = _detect_count_question(
+        question=question,
+        schemas=schemas,
+    )
+
+    if count_result:
+        count_result["sql"] = _validate_generated_sql(
+            sql=count_result["sql"],
+            schemas=schemas,
+        )
+
+        return count_result
 
     ranking_result = _detect_record_ranking(
         question=question,
