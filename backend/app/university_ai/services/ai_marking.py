@@ -726,8 +726,8 @@ def create_marking_job(
         total_submissions=len(submission_ids),
         processed_submissions=0,
         submission_ids=json.dumps(submission_ids),
-        ai_provider="ollama",
-        ai_model="llama3.2",
+        ai_provider="gemini",
+        ai_model=os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
     )
 
     db.add(job)
@@ -750,8 +750,8 @@ def create_marking_result(
     confidence: Optional[float],
     grading_evidence: Optional[str],
     feedback: Optional[str],
-    ai_provider: Optional[str] = "ollama",
-    ai_model: Optional[str] = "llama3.2",
+    ai_provider: Optional[str] = "gemini",
+    ai_model: Optional[str] = None,
 ) -> AIMarkingResult:
 
     if suggested_score is not None:
@@ -796,17 +796,11 @@ def mark_answer_with_ai(
     answer: str,
 ) -> dict:
     """
-    Mark ONE student's answer against ONE question.
-
-    The caller must provide ONLY the answer belonging
-    to this question.
+    Mark ONE student's answer against ONE question using Gemini.
     """
 
-    answer = (
-        answer or ""
-    ).strip()
+    answer = (answer or "").strip()
 
-    # Missing answer must never be sent as useful content.
     if not answer:
         return {
             "score": 0.0,
@@ -819,29 +813,35 @@ def mark_answer_with_ai(
             ),
         }
 
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    gemini_model = os.getenv(
+        "GEMINI_MODEL",
+        "gemini-3.8-flash",
+    )
+
+    if not gemini_api_key:
+        raise RuntimeError(
+            "GEMINI_API_KEY is not configured."
+        )
+
     prompt = f"""
 You are an academic marking assistant.
 
 You are marking ONE student's answer to ONE question.
 
 QUESTION:
-
 {question.question_text}
 
 MAXIMUM MARK:
-
 {question.max_score}
 
 MODEL ANSWER:
-
 {question.model_answer or "No model answer provided."}
 
 MARKING SCHEME:
-
 {question.marking_scheme or "No marking scheme provided."}
 
 STUDENT ANSWER:
-
 {answer}
 
 Rules:
@@ -855,47 +855,92 @@ Rules:
 7. Use the model answer and marking scheme when available.
 8. Do not invent facts.
 9. Be academically fair and conservative.
-10. Grading evidence must refer only to observable content in the student's answer.
-11. Feedback should be brief and constructive.
-12. Return JSON only.
+10. Explain exactly why the answer is correct, partially correct, or wrong.
+11. Grading evidence must refer only to observable content in the student's answer.
+12. Identify important correct, missing, or incorrect points.
+13. Feedback should be brief and constructive.
+14. Confidence must be between 0.0 and 1.0.
+15. The score MUST NOT exceed the maximum mark.
+16. Return valid JSON only.
+17. Do not use Markdown code fences.
+18. Do not include text outside the JSON.
 
 Required JSON:
 
 {{
     "score": 0,
     "confidence": 0.0,
-    "grading_evidence": "Brief evidence supporting the score.",
+    "grading_evidence": "Explain why the student's answer earned this score.",
     "feedback": "Brief constructive feedback to the student."
 }}
 """
 
+    gemini_url = (
+        "https://generativelanguage.googleapis.com/"
+        f"v1beta/models/{gemini_model}:generateContent"
+    )
+
     response = requests.post(
-        "http://127.0.0.1:11434/api/generate",
-        json={
-            "model": "llama3.2",
-            "prompt": prompt,
-            "stream": False,
-            "format": "json",
+        gemini_url,
+        headers={
+            "x-goog-api-key": gemini_api_key,
+            "Content-Type": "application/json",
         },
-        timeout=180,
+        json={
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": prompt,
+                        }
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.1,
+                "responseMimeType": "application/json",
+            },
+        },
+        timeout=120,
     )
 
     response.raise_for_status()
 
-    data = response.json()
+    payload = response.json()
+    candidates = payload.get("candidates") or []
 
-    raw = data.get(
-        "response",
-        "{}",
+    if not candidates:
+        raise ValueError(
+            "Gemini returned no marking result."
+        )
+
+    parts = (
+        candidates[0]
+        .get("content", {})
+        .get("parts", [])
     )
+
+    raw = ""
+
+    for part in parts:
+        part_text = part.get("text")
+
+        if part_text:
+            raw += part_text
+
+    raw = raw.strip()
+
+    if not raw:
+        raise ValueError(
+            "Gemini returned an empty marking result."
+        )
 
     try:
         result = json.loads(raw)
-
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
         raise ValueError(
-            "Ollama returned invalid JSON while marking the answer."
-        )
+            "Gemini returned invalid JSON while marking the answer."
+        ) from exc
 
     try:
         score = float(
@@ -904,11 +949,7 @@ Required JSON:
                 0,
             )
         )
-
-    except (
-        TypeError,
-        ValueError,
-    ):
+    except (TypeError, ValueError):
         score = 0.0
 
     try:
@@ -918,18 +959,18 @@ Required JSON:
                 0,
             )
         )
-
-    except (
-        TypeError,
-        ValueError,
-    ):
+    except (TypeError, ValueError):
         confidence = 0.0
+
+    max_score = float(
+        question.max_score or 0
+    )
 
     score = max(
         0.0,
         min(
             score,
-            float(question.max_score),
+            max_score,
         ),
     )
 
@@ -941,19 +982,34 @@ Required JSON:
         ),
     )
 
+    grading_evidence = str(
+        result.get(
+            "grading_evidence",
+            "",
+        )
+    ).strip()
+
+    feedback = str(
+        result.get(
+            "feedback",
+            "",
+        )
+    ).strip()
+
+    if not grading_evidence:
+        grading_evidence = (
+            "Gemini did not provide grading evidence."
+        )
+
+    if not feedback:
+        feedback = (
+            "Review the answer against the marking scheme."
+        )
+
     return {
         "score": score,
         "confidence": confidence,
-        "grading_evidence": str(
-            result.get(
-                "grading_evidence",
-                "",
-            )
-        ),
-        "feedback": str(
-            result.get(
-                "feedback",
-                "",
-            )
-        ),
+        "grading_evidence": grading_evidence,
+        "feedback": feedback,
     }
+

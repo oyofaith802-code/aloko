@@ -407,46 +407,48 @@ async def upload_student_answer_papers(
                 )
 
                 if student:
-                    enrolled = verify_student_enrollment(
-                        db,
-                        student.id,
-                        assessment.course_offering_id,
+                    independent_mode = (
+                        getattr(
+                            getattr(course, "department", None),
+                            "name",
+                            "",
+                        )
+                        == "Independent Department"
                     )
 
-                    if enrolled:
+                    if independent_mode:
                         identity_status = "uploaded"
-
                         identity_reason = (
-                            "Student identified from "
-                            "matric number in filename."
+                            "Student identified from matric number "
+                            "in an independent lecturer workspace."
                         )
-
                     else:
-                        student = None
-
-                        identity_status = (
-                            "pending_student_match"
+                        enrolled = verify_student_enrollment(
+                            db,
+                            student.id,
+                            assessment.course_offering_id,
                         )
 
-                        identity_reason = (
-                            "Student was found, but is not "
-                            "enrolled in this course."
-                        )
-
+                        if enrolled:
+                            identity_status = "uploaded"
+                            identity_reason = (
+                                "Student identified from matric number "
+                                "in filename."
+                            )
+                        else:
+                            student = None
+                            identity_status = "pending_student_match"
+                            identity_reason = (
+                                "Student was found, but is not "
+                                "enrolled in this course."
+                            )
                 else:
-                    identity_status = (
-                        "pending_student_match"
-                    )
-
+                    identity_status = "pending_student_match"
                     identity_reason = (
                         f"Matric number '{matric}' "
                         "was found in the filename, "
                         "but the student could not be found."
                     )
-
-            # ------------------------------------------------
-            # CREATE SUBMISSION
-            # ------------------------------------------------
 
             submission = create_submission(
                 db=db,
@@ -674,6 +676,15 @@ def run_ai_marking(
     pending_identity = 0
     pending_integrity = 0
 
+    independent_mode = (
+        getattr(
+            getattr(course, "department", None),
+            "name",
+            "",
+        )
+        == "Independent Department"
+    )
+
     try:
         # ----------------------------------------------------
         # PROCESS EACH SUBMISSION
@@ -692,68 +703,60 @@ def run_ai_marking(
             student_id = submission.student_id
 
             # ------------------------------------------------
-            # 2. VERIFY STUDENT ENROLLMENT
-            # ------------------------------------------------
+            # 2 + 3. VERIFY ENROLLMENT AND ATTENDANCE
+            #
+            # Connected university mode requires both checks.
+            # Independent lecturer mode does not.
 
-            enrolled = (
-                db.query(StudentCourse)
-                .filter(
-                    StudentCourse.university_id
-                    == lecturer.university_id,
-                    StudentCourse.course_offering_id
-                    == assessment.course_offering_id,
-                    StudentCourse.student_id
-                    == student_id,
-                    StudentCourse.enrollment_status
-                    == "enrolled",
-                )
-                .first()
-            )
+            if not independent_mode:
 
-            if not enrolled:
-                pending_integrity += 1
-                continue
-
-            # ------------------------------------------------
-            # 3. VERIFY ATTENDANCE
-            # ------------------------------------------------
-
-            attendance = (
-                db.query(AttendanceRecord)
-                .filter(
-                    AttendanceRecord.university_id
-                    == lecturer.university_id,
-
-                    AttendanceRecord.course_offering_id
-                    == assessment.course_offering_id,
-
-                    AttendanceRecord.student_id
-                    == student_id,
-
-                    func.date(
-                        AttendanceRecord.attendance_date
+                enrolled = (
+                    db.query(StudentCourse)
+                    .filter(
+                        StudentCourse.university_id
+                        == lecturer.university_id,
+                        StudentCourse.course_offering_id
+                        == assessment.course_offering_id,
+                        StudentCourse.student_id
+                        == student_id,
+                        StudentCourse.enrollment_status
+                        == "enrolled",
                     )
-                    == assessment.assessment_date.date(),
+                    .first()
                 )
-                .first()
-            )
 
-            # ------------------------------------------------
-            # ONLY PRESENT OR LATE STUDENTS CAN BE MARKED
-            # ------------------------------------------------
+                if not enrolled:
+                    pending_integrity += 1
+                    continue
 
-            if (
-                not attendance
-                or attendance.status
-                not in {
-                    "present",
-                    "late",
-                }
-            ):
-                pending_integrity += 1
-                continue
+                attendance = (
+                    db.query(AttendanceRecord)
+                    .filter(
+                        AttendanceRecord.university_id
+                        == lecturer.university_id,
+                        AttendanceRecord.course_offering_id
+                        == assessment.course_offering_id,
+                        AttendanceRecord.student_id
+                        == student_id,
+                        func.date(
+                            AttendanceRecord.attendance_date
+                        )
+                        == assessment.assessment_date.date(),
+                    )
+                    .first()
+                )
 
-            # ------------------------------------------------
+                if (
+                    not attendance
+                    or attendance.status
+                    not in {
+                        "present",
+                        "late",
+                    }
+                ):
+                    pending_integrity += 1
+                    continue
+
             # 4. GET ANSWER TEXT
             # ------------------------------------------------
 
@@ -1068,17 +1071,30 @@ def match_submission_to_student(
             detail="Student not found.",
         )
 
-    enrolled = verify_student_enrollment(
-        db,
-        student.id,
-        assessment.course_offering_id,
+    independent_mode = (
+        getattr(
+            getattr(course, "department", None),
+            "name",
+            "",
+        )
+        == "Independent Department"
     )
 
-    if not enrolled:
-        raise HTTPException(
-            status_code=400,
-            detail="This student is not enrolled in the course for this assessment.",
+    if not independent_mode:
+        enrolled = verify_student_enrollment(
+            db,
+            student.id,
+            assessment.course_offering_id,
         )
+
+        if not enrolled:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "This student is not enrolled in the course "
+                    "for this assessment."
+                ),
+            )
 
     submission.student_id = student.id
     submission.status = "uploaded"
