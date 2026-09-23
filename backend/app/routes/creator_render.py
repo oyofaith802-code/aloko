@@ -484,68 +484,82 @@ async def render_creator_project(
 
             if custom_voice is not None:
 
-                try:
-
-                    audio_bytes = (
-                        generate_personal_voice_speech(
-                            text=script,
-                            voice=custom_voice,
+                # ------------------------------------------------
+                # REAL CLONED PERSONAL VOICE
+                # ------------------------------------------------
+                if (
+                    custom_voice.status == "ready"
+                    and custom_voice.provider_voice_id
+                ):
+                    try:
+                        audio_bytes = (
+                            generate_personal_voice_speech(
+                                text=script,
+                                voice=custom_voice,
+                            )
                         )
+
+                    except PersonalVoiceError as exc:
+                        raise RuntimeError(
+                            f"Personal voice generation "
+                            f"failed for Scene "
+                            f"{scene.scene_order}: "
+                            f"{str(exc)}"
+                        ) from exc
+
+                    if not audio_bytes:
+                        raise RuntimeError(
+                            f"Personal voice engine "
+                            f"returned no audio for "
+                            f"Scene {scene.scene_order}."
+                        )
+
+                    voice_audio_dir = STORAGE_DIR / "audio"
+                    voice_audio_dir.mkdir(
+                        parents=True,
+                        exist_ok=True,
                     )
 
-                except PersonalVoiceError as exc:
+                    audio_filename = (
+                        f"{custom_voice.id}_"
+                        f"{scene.id}_"
+                        f"{uuid.uuid4().hex}.mp3"
+                    )
 
-                    raise RuntimeError(
-                        f"Personal voice generation "
-                        f"failed for Scene "
-                        f"{scene.scene_order}: "
-                        f"{str(exc)}"
-                    ) from exc
+                    audio_path = (
+                        voice_audio_dir / audio_filename
+                    )
 
-                if not audio_bytes:
+                    with open(audio_path, "wb") as audio_file:
+                        audio_file.write(audio_bytes)
 
-                    raise RuntimeError(
-                        f"Personal voice engine "
-                        f"returned no audio for "
+                    audio_path = str(audio_path.resolve())
+
+                # ------------------------------------------------
+                # RECORDED-ONLY PERSONAL VOICE FALLBACK
+                # ------------------------------------------------
+                else:
+                    print(
+                        f"Personal voice '{custom_voice.name}' "
+                        f"is saved but cloning is unavailable. "
+                        f"Using built-in Edge TTS fallback for "
                         f"Scene {scene.scene_order}."
                     )
 
-                # ------------------------------------------------
-                # SAVE PERSONAL VOICE AUDIO
-                # ------------------------------------------------
+                    fallback_voice = await get_builtin_voice(None)
 
-                voice_audio_dir = (
-                    STORAGE_DIR / "audio"
-                )
-
-                voice_audio_dir.mkdir(
-                    parents=True,
-                    exist_ok=True,
-                )
-
-                audio_filename = (
-                    f"{custom_voice.id}_"
-                    f"{scene.id}_"
-                    f"{uuid.uuid4().hex}.mp3"
-                )
-
-                audio_path = (
-                    voice_audio_dir
-                    / audio_filename
-                )
-
-                with open(
-                    audio_path,
-                    "wb",
-                ) as audio_file:
-
-                    audio_file.write(
-                        audio_bytes
+                    audio_path = await generate_speech(
+                        text=script,
+                        voice=fallback_voice["tts_voice"],
                     )
 
-                audio_path = str(
-                    audio_path.resolve()
-                )
+                    if not audio_path:
+                        raise RuntimeError(
+                            f"Speech fallback returned no audio "
+                            f"for Scene {scene.scene_order}."
+                        )
+
+                    audio_path = os.path.abspath(audio_path)
 
             # -------------------------------------------------
             # BUILT-IN EDGE TTS

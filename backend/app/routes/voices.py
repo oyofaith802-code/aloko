@@ -426,6 +426,43 @@ async def upload_voice(
     }
 
 # ============================================================
+# LIST MY CUSTOM VOICES
+# ============================================================
+
+@router.get("/me")
+def list_my_voices(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return all custom voices belonging to the authenticated user."""
+
+    voices = (
+        db.query(Voice)
+        .filter(
+            Voice.user_id == current_user.id,
+            Voice.voice_type == "custom",
+        )
+        .order_by(Voice.created_at.desc())
+        .all()
+    )
+
+    return {
+        "count": len(voices),
+        "voices": [
+            {
+                "id": voice.id,
+                "name": voice.name,
+                "voice_type": voice.voice_type,
+                "audio_url": voice.audio_url,
+                "provider_voice_id": voice.provider_voice_id,
+                "status": voice.status,
+                "created_at": voice.created_at,
+                "cloning_available": bool(voice.provider_voice_id),
+            }
+            for voice in voices
+        ],
+    }
+
 # GET SINGLE CUSTOM VOICE
 # ============================================================
 
@@ -554,3 +591,4 @@ def delete_my_voice(
         "message": "Voice deleted successfully.",
         "voice_id": voice_id,
     }
+

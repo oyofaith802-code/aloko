@@ -6739,7 +6739,7 @@ setPage("video");
   ======================================================= */
 
   if (page === "video") {
-    const readyPersonalVoices = creatorMyVoices.filter(v => v.voice_type === "custom" && v.status === "ready" && v.provider_voice_id);
+    const personalVoices = creatorMyVoices.filter(v => v.voice_type === "custom");
     const selectedAvatar = avatars.find(a => Number(a.id) === Number(selectedAvatarId));
 
     return (
@@ -6907,21 +6907,20 @@ setPage("video");
   </div>
 
   {creatorVoiceType === "personal" && (
-    readyPersonalVoices.length > 0 ? (
+    personalVoices.length > 0 ? (
       <select
         value={creatorSelectedPersonalVoice}
         onChange={e => setCreatorSelectedPersonalVoice(e.target.value)}
         style={{ width: "100%", marginTop: "12px" }}
       >
         <option value="">Select your personal voice</option>
-        {readyPersonalVoices.map(v => (
-          <option key={v.id} value={v.id}>
-            {v.name || "My Personal Voice"}
+        {personalVoices.map(v => (
+          <option key={v.id} value={v.id} disabled={!v.provider_voice_id}>
+            {v.name || "My Personal Voice"}{v.provider_voice_id ? "" : " — saved, cloning unavailable"}
           </option>
         ))}
       </select>
-    ) : (
-      <div style={{ marginTop: "12px", padding: "14px", borderRadius: "10px", background: "rgba(255,180,80,0.08)" }}>
+    ) : (      <div style={{ marginTop: "12px", padding: "14px", borderRadius: "10px", background: "rgba(255,180,80,0.08)" }}>
         <div style={{ marginBottom: "10px" }}>
           No personal voice is ready yet. Record your voice and save it to your Aloko voice library.
         </div>
@@ -7041,6 +7040,8 @@ setPage("video");
 
 
 export default App;
+
+
 
 
 
