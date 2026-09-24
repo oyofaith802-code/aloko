@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 import re
 
@@ -24,21 +24,21 @@ def _extract_json(text: str) -> dict:
     text = text.strip()
 
     text = re.sub(
-        r"^```(?:json)?\\s*",
+        r"^```(?:json)?\s*",
         "",
         text,
         flags=re.IGNORECASE,
     )
 
     text = re.sub(
-        r"\\s*```$",
+        r"\s*```$",
         "",
         text,
         flags=re.IGNORECASE,
     )
 
     match = re.search(
-        r"\\{.*\\}",
+        r"\{.*\}",
         text,
         flags=re.DOTALL,
     )
