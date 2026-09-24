@@ -996,66 +996,86 @@ Never return text outside the JSON object.
         ]
     }
 
-    gemini_url = GEMINI_API_URL.format(
-        model=GEMINI_MODEL
-    )
-
     headers = {
         "x-goog-api-key": GEMINI_API_KEY,
         "Content-Type": "application/json",
     }
 
-    response = None
-    last_error = None
-
-    for attempt in range(3):
-        try:
-            response = requests.post(
-                gemini_url,
-                headers=headers,
-                json=payload,
-                timeout=300,
-            )
-
-            if response.status_code not in {
-                500,
-                503,
-                429,
-            }:
-                break
-
-            last_error = (
-                f"Gemini returned HTTP "
-                f"{response.status_code}: "
-                f"{response.text[:500]}"
-            )
-
-            if attempt < 2:
-                time.sleep(2 ** attempt)
-
-        except requests.RequestException as exc:
-            last_error = str(exc)
-
-            if attempt < 2:
-                time.sleep(2 ** attempt)
-            else:
-                raise
-
-    if response is None:
-        raise RuntimeError(
-            "Gemini request failed: "
-            + str(last_error)
-        )
-
-    if response.status_code in {
+    transient_statuses = {
         500,
         503,
         429,
-    }:
+    }
+
+    models_to_try = [
+        GEMINI_MODEL,
+    ]
+
+    fallback_model = "gemini-3.7-flash"
+
+    if GEMINI_MODEL != fallback_model:
+        models_to_try.append(fallback_model)
+
+    response = None
+    last_error = None
+
+    for model_index, model_name in enumerate(models_to_try):
+        gemini_url = GEMINI_API_URL.format(
+            model=model_name
+        )
+
+        response = None
+        last_error = None
+
+        for attempt in range(3):
+            try:
+                response = requests.post(
+                    gemini_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=300,
+                )
+
+                if response.status_code not in transient_statuses:
+                    break
+
+                last_error = (
+                    f"Gemini model {model_name} returned "
+                    f"HTTP {response.status_code}: "
+                    f"{response.text[:500]}"
+                )
+
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+
+            except requests.RequestException as exc:
+                last_error = str(exc)
+
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+                else:
+                    response = None
+
+        if response is not None and (
+            response.status_code not in transient_statuses
+        ):
+            break
+
+        if model_index < len(models_to_try) - 1:
+            continue
+
+    if response is None:
+        raise RuntimeError(
+            "Gemini request failed after trying "
+            f"{len(models_to_try)} model(s): "
+            f"{last_error}"
+        )
+
+    if response.status_code in transient_statuses:
         raise RuntimeError(
             "Gemini service temporarily unavailable "
-            f"after 3 attempts: HTTP "
-            f"{response.status_code}. "
+            "after retrying the primary and fallback models: "
+            f"HTTP {response.status_code}. "
             f"{response.text[:500]}"
         )
 
