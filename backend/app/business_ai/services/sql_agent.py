@@ -207,6 +207,386 @@ def _find_real_table(
     return None
 
 
+
+# ============================================================
+# GENERIC NUMERIC INTELLIGENCE
+# ============================================================
+
+def _get_column_metadata(schema: dict) -> list[dict]:
+    columns = schema.get("columns", [])
+
+    if not isinstance(columns, list):
+        return []
+
+    result = []
+
+    for column in columns:
+        if isinstance(column, str):
+            result.append({
+                "name": column,
+                "dtype": "",
+            })
+        elif isinstance(column, dict):
+            name = (
+                column.get("name")
+                or column.get("column")
+                or column.get("column_name")
+            )
+
+            if name:
+                result.append({
+                    "name": str(name),
+                    "dtype": str(
+                        column.get("dtype")
+                        or column.get("type")
+                        or ""
+                    ),
+                })
+
+    return result
+
+
+def _is_numeric_dtype(dtype: str) -> bool:
+    normalized = str(dtype).lower()
+
+    numeric_terms = [
+        "int",
+        "float",
+        "double",
+        "decimal",
+        "numeric",
+        "real",
+    ]
+
+    return any(term in normalized for term in numeric_terms)
+
+
+def _find_numeric_column(
+    schemas: list[dict],
+    preferred_names: list[str] | None = None,
+) -> tuple[str | None, str | None]:
+
+    preferred = {
+        item.strip().lower()
+        for item in (preferred_names or [])
+    }
+
+    # First look for explicitly named numeric columns.
+    for schema in schemas:
+        table = schema.get("table_name")
+
+        if not table:
+            continue
+
+        for item in _get_column_metadata(schema):
+            name = item["name"]
+            dtype = item["dtype"]
+
+            if (
+                name.lower() in preferred
+                and _is_numeric_dtype(dtype)
+            ):
+                return str(table), name
+
+    # Then use any numeric column.
+    for schema in schemas:
+        table = schema.get("table_name")
+
+        if not table:
+            continue
+
+        for item in _get_column_metadata(schema):
+            if _is_numeric_dtype(item["dtype"]):
+                return str(table), item["name"]
+
+    return None, None
+
+
+def _detect_numeric_aggregation(
+    question: str,
+    schemas: list[dict],
+) -> dict | None:
+
+    normalized = re.sub(
+        r"\s+",
+        " ",
+        question.strip().lower(),
+    )
+
+    aggregation = None
+
+    if any(
+        phrase in normalized
+        for phrase in [
+            "average",
+            "avg",
+            "mean",
+        ]
+    ):
+        aggregation = "AVG"
+
+    elif any(
+        phrase in normalized
+        for phrase in [
+            "total",
+            "sum of",
+            "sum",
+        ]
+    ):
+        aggregation = "SUM"
+
+    elif any(
+        phrase in normalized
+        for phrase in [
+            "maximum",
+            "maximum value",
+            "highest value",
+            "highest",
+            "max",
+        ]
+    ):
+        aggregation = "MAX"
+
+    elif any(
+        phrase in normalized
+        for phrase in [
+            "minimum",
+            "minimum value",
+            "lowest value",
+            "lowest",
+            "min",
+        ]
+    ):
+        aggregation = "MIN"
+
+    if not aggregation:
+        return None
+
+    # Do not steal entity-ranking questions such as:
+    # "Which product generated the highest revenue?"
+    if any(
+        phrase in normalized
+        for phrase in [
+            "which ",
+            "who ",
+            "top ",
+            "bottom ",
+            "most ",
+            "least ",
+        ]
+    ):
+        return None
+
+    preferred_names = []
+
+    metric_aliases = {
+        "revenue": [
+            "revenue",
+            "sales",
+            "sales_amount",
+            "sales_value",
+            "amount",
+        ],
+        "quantity": [
+            "quantity",
+            "qty",
+            "units",
+            "units_sold",
+        ],
+        "price": [
+            "price",
+            "unit_price",
+            "unitprice",
+        ],
+    }
+
+    for key, names in metric_aliases.items():
+        if key in normalized:
+            preferred_names.extend(names)
+
+    table_name, column_name = _find_numeric_column(
+        schemas,
+        preferred_names,
+    )
+
+    if not table_name or not column_name:
+        return None
+
+    quoted_table = f'"{table_name}"'
+    quoted_column = f'"{column_name}"'
+
+    sql = (
+        f"SELECT {aggregation}({quoted_column}) "
+        f"AS value FROM {quoted_table}"
+    )
+
+    return {
+        "answerable": True,
+        "sql": sql,
+        "reason": (
+            "Deterministic numeric aggregation generated "
+            "from the workspace dataset schema."
+        ),
+    }
+
+
+def _detect_numeric_ranking(
+    question: str,
+    schemas: list[dict],
+) -> dict | None:
+
+    normalized = re.sub(
+        r"\s+",
+        " ",
+        question.strip().lower(),
+    )
+
+    ranking_requested = any(
+        phrase in normalized
+        for phrase in [
+            "which ",
+            "who ",
+            "top ",
+            "bottom ",
+            "most ",
+            "least ",
+        ]
+    )
+
+    if not ranking_requested:
+        return None
+
+    direction = None
+
+    if any(
+        phrase in normalized
+        for phrase in [
+            "highest",
+            "most",
+            "top",
+            "largest",
+            "maximum",
+        ]
+    ):
+        direction = "DESC"
+
+    elif any(
+        phrase in normalized
+        for phrase in [
+            "lowest",
+            "least",
+            "bottom",
+            "smallest",
+            "minimum",
+        ]
+    ):
+        direction = "ASC"
+
+    if not direction:
+        return None
+
+    metric_aliases = {
+        "revenue": [
+            "revenue",
+            "sales",
+            "sales_amount",
+            "sales_value",
+            "amount",
+        ],
+        "quantity": [
+            "quantity",
+            "qty",
+            "units",
+            "units_sold",
+        ],
+        "price": [
+            "price",
+            "unit_price",
+            "unitprice",
+        ],
+    }
+
+    preferred_names = []
+
+    for key, names in metric_aliases.items():
+        if key in normalized:
+            preferred_names.extend(names)
+
+    table_name, metric_column = _find_numeric_column(
+        schemas,
+        preferred_names,
+    )
+
+    if not table_name or not metric_column:
+        return None
+
+    # Find a likely entity column in the same table.
+    schema = next(
+        (
+            item
+            for item in schemas
+            if str(item.get("table_name")) == str(table_name)
+        ),
+        None,
+    )
+
+    if not schema:
+        return None
+
+    entity_column = None
+
+    entity_preferences = [
+        "product",
+        "product_name",
+        "customer",
+        "customer_name",
+        "item",
+        "name",
+        "category",
+    ]
+
+    metadata = _get_column_metadata(schema)
+
+    for preferred in entity_preferences:
+        for item in metadata:
+            if item["name"].lower() == preferred:
+                entity_column = item["name"]
+                break
+
+        if entity_column:
+            break
+
+    if not entity_column:
+        return None
+
+    limit_match = re.search(
+        r"\b(?:top|bottom)\s+(\d+)\b",
+        normalized,
+    )
+
+    limit = int(limit_match.group(1)) if limit_match else 1
+
+    quoted_table = f'"{table_name}"'
+    quoted_entity = f'"{entity_column}"'
+    quoted_metric = f'"{metric_column}"'
+
+    sql = (
+        f"SELECT {quoted_entity}, "
+        f"{quoted_metric} "
+        f"FROM {quoted_table} "
+        f"ORDER BY {quoted_metric} {direction} "
+        f"LIMIT {limit}"
+    )
+
+    return {
+        "answerable": True,
+        "sql": sql,
+        "reason": (
+            "Deterministic numeric ranking generated "
+            "from the workspace dataset schema."
+        ),
+    }
+
 # ============================================================
 # DETERMINISTIC RANKING DETECTION
 # ============================================================
@@ -236,6 +616,54 @@ def _detect_count_question(
 
     if not schemas:
         return None
+
+    # Entity-aware counts: "how many products/customers/etc."
+    # should count distinct entities when a matching column exists.
+    entity_candidates = [
+        word
+        for word in [
+            "product",
+            "products",
+            "customer",
+            "customers",
+            "order",
+            "orders",
+            "category",
+            "categories",
+            "supplier",
+            "suppliers",
+        ]
+        if re.search(rf"\b{re.escape(word)}\b", normalized)
+    ]
+
+    if entity_candidates:
+        singular = entity_candidates[0].rstrip("s")
+        table_name, entity_column = _find_column(
+            schemas,
+            [
+                singular,
+                singular + "_name",
+                singular + "name",
+            ],
+        )
+
+        if table_name and entity_column:
+            quoted_table = f'"{table_name}"'
+            quoted_column = f'"{entity_column}"'
+
+            sql = (
+                f"SELECT COUNT(DISTINCT {quoted_column}) "
+                f"AS record_count FROM {quoted_table}"
+            )
+
+            return {
+                "answerable": True,
+                "sql": sql,
+                "reason": (
+                    "Deterministic distinct entity count generated "
+                    "from the workspace dataset schema."
+                ),
+            }
 
     table_name = str(
         schemas[0].get("table_name") or ""
@@ -762,6 +1190,30 @@ def generate_sql(
         )
 
         return revenue_result
+
+    numeric_ranking_result = _detect_numeric_ranking(
+        question=question,
+        schemas=schemas,
+    )
+
+    if numeric_ranking_result:
+        numeric_ranking_result["sql"] = _validate_generated_sql(
+            sql=numeric_ranking_result["sql"],
+            schemas=schemas,
+        )
+        return numeric_ranking_result
+
+    numeric_aggregation_result = _detect_numeric_aggregation(
+        question=question,
+        schemas=schemas,
+    )
+
+    if numeric_aggregation_result:
+        numeric_aggregation_result["sql"] = _validate_generated_sql(
+            sql=numeric_aggregation_result["sql"],
+            schemas=schemas,
+        )
+        return numeric_aggregation_result
 
     # ========================================================
     # LLM FALLBACK
