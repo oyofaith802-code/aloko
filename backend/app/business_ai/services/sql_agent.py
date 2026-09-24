@@ -94,6 +94,14 @@ def _get_schema_columns(schema: dict) -> list[str]:
     }
     """
 
+    # Business AI analysis routes may provide either:
+    # {"columns": [...]}
+    # or {"schema": {"columns": [...]}}
+    nested_schema = schema.get("schema")
+
+    if isinstance(nested_schema, dict):
+        schema = nested_schema
+
     columns = schema.get("columns", [])
 
     if not isinstance(columns, list):
@@ -213,6 +221,14 @@ def _find_real_table(
 # ============================================================
 
 def _get_column_metadata(schema: dict) -> list[dict]:
+    # Business AI analysis routes may provide either:
+    # {"columns": [...]}
+    # or {"schema": {"columns": [...]}}
+    nested_schema = schema.get("schema")
+
+    if isinstance(nested_schema, dict):
+        schema = nested_schema
+
     columns = schema.get("columns", [])
 
     if not isinstance(columns, list):
