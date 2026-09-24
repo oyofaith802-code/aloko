@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+﻿from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,7 @@ from app.business_ai.models.workspace import BusinessWorkspace
 from app.business_ai.models.dataset import BusinessDataset
 from app.business_ai.models.business_memory import BusinessMemory
 from app.business_ai.models.business_report import BusinessReport
+from app.business_ai.services.dataset_cleanup import delete_dataset_storage
 
 
 router = APIRouter(
@@ -257,6 +258,46 @@ def get_business_dataset(
 # BUSINESS MEMORY / HISTORY
 # ============================================================
 
+@router.delete("/workspaces/{workspace_id}/datasets/{dataset_id}")
+def delete_business_dataset(
+    workspace_id: int,
+    dataset_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    dataset = (
+        db.query(BusinessDataset)
+        .filter(
+            BusinessDataset.id == dataset_id,
+            BusinessDataset.workspace_id == workspace_id,
+            BusinessDataset.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found.")
+
+    storage_path = dataset.storage_path
+    table_name = dataset.table_name
+
+    try:
+        delete_dataset_storage(storage_path, table_name)
+        db.delete(dataset)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete dataset: {exc}",
+        )
+
+    return {
+        "success": True,
+        "message": "Dataset deleted successfully.",
+        "dataset_id": dataset_id,
+    }
+
 @router.get("/workspaces/{workspace_id}/memory")
 def get_business_memory(
     workspace_id: int,
@@ -455,3 +496,4 @@ def business_dashboard(
             ],
         },
     }
+
