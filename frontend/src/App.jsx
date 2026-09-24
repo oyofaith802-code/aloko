@@ -56,6 +56,7 @@ import {
   getBusinessMemory,
   getBusinessReports,
   getBusinessReport,
+  deleteBusinessDataset,
   generateBusinessReport,
   getLecturerMe,
   onboardLecturer,

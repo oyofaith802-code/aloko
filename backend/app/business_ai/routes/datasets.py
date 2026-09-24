@@ -120,6 +120,7 @@ async def upload_dataset(
         )
 
     try:
+        print(f'[BUSINESS UPLOAD] filename={file.filename!r} source_type={source_type!r} content_type={file.content_type!r} size={len(file_bytes)}')
         storage_path = save_uploaded_file(
             file_bytes=file_bytes,
             filename=file.filename,
