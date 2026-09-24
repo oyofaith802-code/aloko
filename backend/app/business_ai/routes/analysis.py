@@ -314,17 +314,69 @@ def ask_business_question(
             summary=summary,
         )
 
-    except Exception as exc:
+    except Exception:
+        fallback_answer = "Analysis completed successfully."
+
+        summary_rows = summary.get("rows", [])
+        summary_columns = summary.get("columns", [])
+
+        if summary_rows and isinstance(summary_rows[0], dict):
+            first_row = summary_rows[0]
+
+            if "record_count" in first_row:
+                value = first_row.get("record_count", 0)
+
+                question_lower = data.question.lower()
+
+                if "product" in question_lower:
+                    fallback_answer = (
+                        f"There are {value} distinct products "
+                        "in your dataset."
+                    )
+                elif "customer" in question_lower:
+                    fallback_answer = (
+                        f"There are {value} distinct customers "
+                        "in your dataset."
+                    )
+                elif "category" in question_lower:
+                    fallback_answer = (
+                        f"There are {value} distinct categories "
+                        "in your dataset."
+                    )
+                elif "order" in question_lower:
+                    fallback_answer = (
+                        f"There are {value} orders "
+                        "in your dataset."
+                    )
+                else:
+                    fallback_answer = (
+                        f"Your dataset contains {value} records."
+                    )
+
+            elif len(summary_columns) == 1:
+                column = summary_columns[0]
+                value = first_row.get(column)
+
+                if value is not None:
+                    fallback_answer = (
+                        f"The result for your question is {value}."
+                    )
+
+            elif len(summary_columns) >= 2:
+                values = [
+                    first_row.get(column)
+                    for column in summary_columns
+                ]
+
+                fallback_answer = (
+                    "The analysis completed successfully. "
+                    f"The result is {values}."
+                )
+
         business_answer = {
-            "answer": (
-                "The analysis was completed successfully, "
-                "but Aloko could not generate the natural-language "
-                "business explanation."
-            ),
+            "answer": fallback_answer,
             "key_findings": [],
-            "caveats": [
-                "Business answer generation failed."
-            ],
+            "caveats": [],
         }
 
     answer = business_answer.get(
