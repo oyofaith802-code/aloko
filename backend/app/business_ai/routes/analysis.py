@@ -123,9 +123,20 @@ def ask_business_question(
     # ========================================================
 
     try:
+        print(
+            "[BUSINESS ANALYSIS] "
+            f"question={data.question!r} "
+            f"schemas={schemas!r}"
+        )
+
         sql_result = generate_sql(
             question=data.question,
             schemas=schemas,
+        )
+
+        print(
+            "[BUSINESS ANALYSIS] "
+            f"sql_result={sql_result!r}"
         )
 
     except Exception as exc:
