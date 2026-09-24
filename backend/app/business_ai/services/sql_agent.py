@@ -1017,15 +1017,15 @@ Never return text outside the JSON object.
         models_to_try.append(fallback_model)
 
     response = None
-    last_error = None
+    model_errors = []
 
-    for model_index, model_name in enumerate(models_to_try):
+    for model_name in models_to_try:
         gemini_url = GEMINI_API_URL.format(
             model=model_name
         )
 
         response = None
-        last_error = None
+        model_last_error = None
 
         for attempt in range(3):
             try:
@@ -1039,17 +1039,22 @@ Never return text outside the JSON object.
                 if response.status_code not in transient_statuses:
                     break
 
-                last_error = (
-                    f"Gemini model {model_name} returned "
-                    f"HTTP {response.status_code}: "
-                    f"{response.text[:500]}"
+                model_last_error = (
+                    f"model={model_name}, "
+                    f"attempt={attempt + 1}, "
+                    f"HTTP {response.status_code}, "
+                    f"body={response.text[:1000]}"
                 )
 
                 if attempt < 2:
                     time.sleep(2 ** attempt)
 
             except requests.RequestException as exc:
-                last_error = str(exc)
+                model_last_error = (
+                    f"model={model_name}, "
+                    f"attempt={attempt + 1}, "
+                    f"request_error={exc}"
+                )
 
                 if attempt < 2:
                     time.sleep(2 ** attempt)
@@ -1061,22 +1066,21 @@ Never return text outside the JSON object.
         ):
             break
 
-        if model_index < len(models_to_try) - 1:
-            continue
+        if model_last_error:
+            model_errors.append(model_last_error)
 
     if response is None:
         raise RuntimeError(
             "Gemini request failed after trying "
-            f"{len(models_to_try)} model(s): "
-            f"{last_error}"
+            f"{len(models_to_try)} model(s). "
+            + " | ".join(model_errors)
         )
 
     if response.status_code in transient_statuses:
         raise RuntimeError(
             "Gemini service temporarily unavailable "
-            "after retrying the primary and fallback models: "
-            f"HTTP {response.status_code}. "
-            f"{response.text[:500]}"
+            "after retrying the primary and fallback models. "
+            + " | ".join(model_errors)
         )
 
     response.raise_for_status()
