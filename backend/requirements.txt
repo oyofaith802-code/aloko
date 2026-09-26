@@ -24,3 +24,5 @@ elevenlabs
 faster-whisper
 sentence-transformers
 argostranslate
+
+psycopg[binary]
