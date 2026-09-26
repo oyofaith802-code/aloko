@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   getLecturerDashboard,
   createLecturerCourse,
@@ -1266,7 +1266,7 @@ function startEditAssessment(assessment) {
             type="button"
             onClick={() => setSelectedPanel("students")}
           >
-            Back Ã‚Â¢-Back Ã‚Â Back
+            Back Ãƒâ€šÃ‚Â¢-Back Ãƒâ€šÃ‚Â Back
           </button>
 
           <button
@@ -1432,7 +1432,7 @@ function startEditAssessment(assessment) {
                     <strong>{student.name || "Student"}</strong>
                   </td>
 
-                  <td>{student.matric_number || "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}</td>
+                  <td>{student.matric_number || "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}</td>
 
                   <td>
                     <strong>
@@ -1535,7 +1535,7 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
           <h2>Manage Results</h2>
           <p>{selectedCourse.course_code || "Course"}  -  {selectedCourse.course_name || "Selected Course"}</p>
         </div>
-        <button className="lecturer-action secondary" type="button" onClick={() => setSelectedPanel("students")}>Back Ã‚Â¢-Back Ã‚Â Back</button>
+        <button className="lecturer-action secondary" type="button" onClick={() => setSelectedPanel("students")}>Back Ãƒâ€šÃ‚Â¢-Back Ãƒâ€šÃ‚Â Back</button>
       </div>
       <div
       className="lecturer-results-export"
@@ -1630,7 +1630,7 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
                         ))}
                         <td><strong>{totalScore.toFixed(2)} / {totalMax.toFixed(2)}</strong><small>{marked}/{assessments.length} marked</small></td>
                         <td>{percentage.toFixed(2)}%</td>
-                        <td><strong>{marked === 0 ? "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â" : grade}</strong></td>
+                        <td><strong>{marked === 0 ? "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â" : grade}</strong></td>
                       </tr>
                     );
                   })}
@@ -1651,7 +1651,7 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
           <p>{selectedCourse.course_code || "Course"}  -  {selectedCourse.course_name || "Selected Course"}</p>
         </div>
         <button className="lecturer-action secondary" type="button" onClick={() => { setSelectedCourse(null); setSelectedPanel("students"); }}>
-          Back Ã‚Â¢-Back Ã‚Â Back to Courses
+          Back Ãƒâ€šÃ‚Â¢-Back Ãƒâ€šÃ‚Â Back to Courses
         </button>
       </div>
 
@@ -1822,9 +1822,9 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
             <tbody>
               {assessments.map((assessment, index) => (
                 <tr key={assessment.id || index}>
-                  <td>{assessment.title || assessment.name || assessment.assessment_name || "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}</td>
-                  <td>{assessment.assessment_type || assessment.type || "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}</td>
-                  <td>{assessment.total_marks ?? assessment.max_score ?? "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}</td>
+                  <td>{assessment.title || assessment.name || assessment.assessment_name || "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}</td>
+                  <td>{assessment.assessment_type || assessment.type || "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}</td>
+                  <td>{assessment.total_marks ?? assessment.max_score ?? "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}</td>
                   <td>{assessment.status || "active"}</td>
                     <td>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1875,7 +1875,7 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
               setSelectedPanel("students");
             }}
           >
-            Back Ã‚Â¢-Back Ã‚Â Back to Courses
+            Back Ãƒâ€šÃ‚Â¢-Back Ãƒâ€šÃ‚Â Back to Courses
           </button>
         </div>
 
@@ -1894,48 +1894,23 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
             <div className="lecturer-empty">Loading assessments...</div>
           ) : (
             <select
-              value={
-                aiMarkingAssessment?.id != null
-                  ? String(aiMarkingAssessment.id)
-                  : ""
-              }
+  value={
+    aiMarkingAssessment?.id != null
+      ? String(aiMarkingAssessment.id)
+      : ""
+  }
+  onChange={(e) => {
+    const selectedId = e.target.value;
 
-              onChange={(e) => {
-  const selectedFiles = Array.from(e.target.files || []);
+    const selectedAssessment =
+      assessments.find(
+        (assessment) => String(assessment.id) === String(selectedId)
+      ) || null;
 
-  if (!selectedFiles.length) return;
-
-  setAIMarkingError("");
-
-  setAIAnswerFiles((previousFiles) => {
-    const existingKeys = new Set(
-      previousFiles.map(
-        (file) => `${file.name}-${file.size}-${file.lastModified}`
-      )
-    );
-
-    const newFiles = selectedFiles.filter(
-      (file) =>
-        !existingKeys.has(
-          `${file.name}-${file.size}-${file.lastModified}`
-        )
-    );
-
-    const combinedFiles = [...previousFiles, ...newFiles];
-
-    if (combinedFiles.length > 600) {
-      setAIMarkingError(
-        "Maximum 600 answer papers per upload batch. Extra files were not added."
-      );
-      return combinedFiles.slice(0, 600);
-    }
-
-    return combinedFiles;
-  });
-
-  e.target.value = "";
-}}
-              style={{
+    setAIMarkingAssessment(selectedAssessment);
+    setAIMarkingError("");
+  }}
+  style={{
                 width: "100%",
                 padding: 12,
                 borderRadius: 8,
@@ -2036,7 +2011,7 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
                           </td>
 
                           <td style={{ padding: 10 }}>
-                            {question.question_text || "Back Ã‚Â¢Back Ã‚Â¬Back Ã‚Â"}
+                            {question.question_text || "Back Ãƒâ€šÃ‚Â¢Back Ãƒâ€šÃ‚Â¬Back Ãƒâ€šÃ‚Â"}
                           </td>
 
                           <td style={{ padding: 10, textAlign: "right" }}>
@@ -2392,12 +2367,12 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
                             )}
                           </td>
                           <td>{result.question_number || result.question_id}</td>
-                          <td>{result.suggested_score ?? "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}</td>
-                          <td>{result.max_score ?? "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}</td>
+                          <td>{result.suggested_score ?? "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}</td>
+                          <td>{result.max_score ?? "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}</td>
                           <td>
                             {result.confidence !== null && result.confidence !== undefined
                               ? `${Math.round(Number(result.confidence) * 100)}%`
-                              : "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}
+                              : "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}
                           </td>
                           <td>
                             {(() => {
@@ -2458,7 +2433,7 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
                           </td>
                           <td>
                             <div style={{ maxWidth: 320, whiteSpace: "normal" }}>
-                              {result.grading_evidence || result.feedback || "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}
+                              {result.grading_evidence || result.feedback || "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}
                             </div>
                           </td>
                           <td>
@@ -2535,7 +2510,7 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
           className="lecturer-back"
           type="button"
         >
-          Back Ã‚Â¢-Back Ã‚Â Back
+          Back Ãƒâ€šÃ‚Â¢-Back Ãƒâ€šÃ‚Â Back
         </button>
 
         <div className="lecturer-error">
@@ -2739,7 +2714,7 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
           className="lecturer-back"
           type="button"
         >
-          Back Ã‚Â¢-Back Ã‚Â Back
+          Back Ãƒâ€šÃ‚Â¢-Back Ãƒâ€šÃ‚Â Back
         </button>
 
         <header className="lecturer-header">
@@ -2758,8 +2733,8 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
           </div>
 
           <div className="lecturer-meta">
-            Staff ID: {lecturer.staff_id || "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}  -  Status:{" "}
-            {lecturer.status || "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}
+            Staff ID: {lecturer.staff_id || "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}  -  Status:{" "}
+            {lecturer.status || "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}
           </div>
         </section>
 
@@ -2810,7 +2785,7 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
               <p>{selectedCourse.course_code || "Course"}  -  {selectedCourse.course_name || "Selected Course"}</p>
             </div>
             <button className="lecturer-action secondary" type="button" onClick={() => setSelectedCourse(null)}>
-              Back Ã‚Â¢-Back Ã‚Â Back to Courses
+              Back Ãƒâ€šÃ‚Â¢-Back Ãƒâ€šÃ‚Â Back to Courses
             </button>
           </div>
 
@@ -2993,9 +2968,9 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
                 <tbody>
                   {filteredStudents.map((student, index) => (
                     <tr key={student.id || student.student_id || index}>
-                      <td>{student.name || [student.first_name, student.last_name].filter(Boolean).join(" ") || "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}</td>
-                      <td>{student.matric_number || student.registration_number || student.student_number || "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}</td>
-                      <td>{student.level || "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}</td>
+                      <td>{student.name || [student.first_name, student.last_name].filter(Boolean).join(" ") || "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}</td>
+                      <td>{student.matric_number || student.registration_number || student.student_number || "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}</td>
+                      <td>{student.level || "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}</td>
                       <td>{student.status || "active"}</td>
                     </tr>
                   ))}
@@ -3139,9 +3114,9 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
                 </div>
 
                 <div className="lecturer-course-meta">
-                  Level: {course.level || "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}  -  Section:{" "}
-                  {course.section || "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}  -  Role:{" "}
-                  {course.role || "Back Ã‚Â¢-Ã‚Â¡Back Ã‚Â¬-Ã‚Â"}
+                  Level: {course.level || "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}  -  Section:{" "}
+                  {course.section || "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}  -  Role:{" "}
+                  {course.role || "Back Ãƒâ€šÃ‚Â¢-Ãƒâ€šÃ‚Â¡Back Ãƒâ€šÃ‚Â¬-Ãƒâ€šÃ‚Â"}
                 </div>
 
                 <div className="lecturer-course-meta">
@@ -3195,6 +3170,7 @@ const resultsPanel = selectedPanel === "results" && selectedCourse ? (
     </div>
   );
 }
+
 
 
 
