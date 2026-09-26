@@ -861,6 +861,55 @@ def mark_answer_with_ai(
             "GEMINI_API_KEY is not configured."
         )
 
+    prompt = f"""
+You are an academic marking assistant.
+
+You are marking ONE student's answer to ONE question.
+
+QUESTION:
+{question.question_text}
+
+MAXIMUM MARK:
+{question.max_score}
+
+MODEL ANSWER:
+{question.model_answer or "No model answer provided."}
+
+MARKING SCHEME:
+{question.marking_scheme or "No marking scheme provided."}
+
+STUDENT ANSWER:
+{answer}
+
+Rules:
+1. Mark ONLY the student's answer provided above.
+2. Do not use information from other questions.
+3. Do not assume the student wrote information that is not present.
+4. Award a score from 0 to the maximum mark.
+5. Give partial marks where justified.
+6. Compare the answer directly against the question.
+7. Use the model answer and marking scheme when available.
+8. Do not invent facts.
+9. Be academically fair and conservative.
+10. Explain exactly why the answer is correct, partially correct, or wrong.
+11. Grading evidence must refer only to observable content in the student's answer.
+12. Identify important correct, missing, or incorrect points.
+13. Feedback should be brief and constructive.
+14. Confidence must be between 0.0 and 1.0.
+15. The score MUST NOT exceed the maximum mark.
+16. Return valid JSON only.
+17. Do not use Markdown code fences.
+18. Do not include text outside the JSON.
+
+Required JSON:
+{{
+    "score": 0,
+    "confidence": 0.0,
+    "grading_evidence": "Explain why the student's answer earned this score.",
+    "feedback": "Brief constructive feedback to the student."
+}}
+"""
+
     gemini_url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
         f"{gemini_model}:generateContent"
