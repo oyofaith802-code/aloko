@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 
@@ -919,7 +919,7 @@ Required JSON:
 
     models_to_try = [
         gemini_model,
-        "gemini-3.6-flash",
+        "gemini-2.5-flash",
     ]
 
     response = None
@@ -1088,3 +1088,4 @@ Required JSON:
         "grading_evidence": grading_evidence,
         "feedback": feedback,
     }
+
