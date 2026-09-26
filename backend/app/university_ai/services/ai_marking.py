@@ -915,31 +915,73 @@ Required JSON:
         f"{gemini_model}:generateContent"
     )
 
-    response = requests.post(
-        gemini_url,
-        params={
-            "key": gemini_api_key,
-        },
-        headers={
-            "Content-Type": "application/json",
-        },
-        json={
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": prompt,
-                        }
-                    ]
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0.1,
-                "responseMimeType": "application/json",
-            },
-        },
-        timeout=300,
-    )
+    import time
+
+    models_to_try = [
+        gemini_model,
+        "gemini-3.6-flash",
+    ]
+
+    response = None
+    last_error = None
+
+    for model_index, model_name in enumerate(models_to_try):
+        retry_url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model_name}:generateContent"
+        )
+
+        for attempt in range(3):
+            try:
+                response = requests.post(
+                    retry_url,
+                    params={
+                        "key": gemini_api_key,
+                    },
+                    headers={
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "contents": [
+                            {
+                                "parts": [
+                                    {
+                                        "text": prompt,
+                                    }
+                                ]
+                            }
+                        ],
+                        "generationConfig": {
+                            "temperature": 0.1,
+                            "responseMimeType": "application/json",
+                        },
+                    },
+                    timeout=300,
+                )
+
+                if response.status_code < 500:
+                    break
+
+                last_error = (
+                    f"Gemini returned HTTP {response.status_code} "
+                    f"using {model_name}."
+                )
+
+            except requests.RequestException as exc:
+                last_error = str(exc)
+
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+
+        if response is not None and response.status_code < 500:
+            break
+
+        response = None
+
+    if response is None:
+        raise RuntimeError(
+            last_error or "Gemini AI marking request failed."
+        )
 
     response.raise_for_status()
 
