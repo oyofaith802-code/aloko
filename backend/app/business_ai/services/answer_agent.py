@@ -7,14 +7,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OLLAMA_HOST = os.getenv(
-    "OLLAMA_HOST",
-    "http://localhost:11434",
-).rstrip("/")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_MODEL = os.getenv(
+    "GEMINI_MODEL",
+    "gemini-3.8-flash",
+).strip()
 
-OLLAMA_MODEL = os.getenv(
-    "OLLAMA_MODEL",
-    "llama3.2:1b",
+GEMINI_API_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    "{model}:generateContent"
 )
 
 
@@ -142,25 +143,36 @@ Never return text outside the JSON object.
         + user_content
     )
 
-    ollama_url = f"{OLLAMA_HOST}/api/chat"
+    if not GEMINI_API_KEY:
+        raise ValueError(
+            "GEMINI_API_KEY is not configured."
+        )
+
+    gemini_url = GEMINI_API_URL.format(
+        model=GEMINI_MODEL
+    )
 
     response = requests.post(
-        ollama_url,
+        gemini_url,
+        params={
+            "key": GEMINI_API_KEY,
+        },
         headers={
             "Content-Type": "application/json",
         },
         json={
-            "model": OLLAMA_MODEL,
-            "messages": [
+            "contents": [
                 {
-                    "role": "user",
-                    "content": prompt,
+                    "parts": [
+                        {
+                            "text": prompt,
+                        }
+                    ]
                 }
             ],
-            "stream": False,
-            "format": "json",
-            "options": {
+            "generationConfig": {
                 "temperature": 0.1,
+                "responseMimeType": "application/json",
             },
         },
         timeout=120,
@@ -170,15 +182,28 @@ Never return text outside the JSON object.
 
     data = response.json()
 
-    content = (
-        data
-        .get("message", {})
-        .get("content", "")
+    candidates = data.get("candidates") or []
+
+    if not candidates:
+        raise ValueError(
+            "Gemini returned no business answer."
+        )
+
+    parts = (
+        candidates[0]
+        .get("content", {})
+        .get("parts", [])
     )
+
+    content = "".join(
+        str(part.get("text", ""))
+        for part in parts
+        if isinstance(part, dict)
+    ).strip()
 
     if not content:
         raise ValueError(
-            "Ollama returned an empty business answer."
+            "Gemini returned an empty business answer."
         )
 
     result = _extract_json(content)

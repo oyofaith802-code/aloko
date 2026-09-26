@@ -9,14 +9,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-OLLAMA_HOST = os.getenv(
-    "OLLAMA_HOST",
-    "http://localhost:11434",
-).rstrip("/")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_MODEL = os.getenv(
+    "GEMINI_MODEL",
+    "gemini-3.8-flash",
+).strip()
 
-OLLAMA_MODEL = os.getenv(
-    "OLLAMA_MODEL",
-    "llama3.2:1b",
+GEMINI_API_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    "{model}:generateContent"
 )
 
 # ============================================================
@@ -1446,26 +1447,14 @@ Never return code fences.
 Never return text outside the JSON object.
 """
 
-    payload = {
-        "model": OLLAMA_MODEL,
-        "messages": [
-            {
-                "role": "user",
-                "content": (
-                    system_prompt
-                    + "\n\nUSER BUSINESS QUESTION:\n"
-                    + question
-                ),
-            }
-        ],
-        "stream": False,
-        "format": "json",
-        "options": {
-            "temperature": 0.0,
-        },
-    }
+    if not GEMINI_API_KEY:
+        raise ValueError(
+            "GEMINI_API_KEY is not configured."
+        )
 
-    ollama_url = f"{OLLAMA_HOST}/api/chat"
+    gemini_url = GEMINI_API_URL.format(
+        model=GEMINI_MODEL
+    )
 
     response = None
     last_error = None
@@ -1473,11 +1462,32 @@ Never return text outside the JSON object.
     for attempt in range(3):
         try:
             response = requests.post(
-                ollama_url,
+                gemini_url,
+                params={
+                    "key": GEMINI_API_KEY,
+                },
                 headers={
                     "Content-Type": "application/json",
                 },
-                json=payload,
+                json={
+                    "contents": [
+                        {
+                            "parts": [
+                                {
+                                    "text": (
+                                        system_prompt
+                                        + "\n\nUSER BUSINESS QUESTION:\n"
+                                        + question
+                                    )
+                                }
+                            ]
+                        }
+                    ],
+                    "generationConfig": {
+                        "temperature": 0.0,
+                        "responseMimeType": "application/json",
+                    },
+                },
                 timeout=300,
             )
 
@@ -1504,13 +1514,13 @@ Never return text outside the JSON object.
 
     if response is None:
         raise RuntimeError(
-            "Ollama SQL request failed after 3 attempts. "
+            "Gemini SQL request failed after 3 attempts. "
             + str(last_error)
         )
 
     if not response.ok:
         raise RuntimeError(
-            "Ollama SQL service returned an error after 3 attempts. "
+            "Gemini SQL service returned an error after 3 attempts. "
             + str(last_error)
         )
 
@@ -1518,15 +1528,28 @@ Never return text outside the JSON object.
 
     data = response.json()
 
-    content = (
-        data
-        .get("message", {})
-        .get("content", "")
+    candidates = data.get("candidates") or []
+
+    if not candidates:
+        raise ValueError(
+            "Gemini returned no SQL response."
+        )
+
+    parts = (
+        candidates[0]
+        .get("content", {})
+        .get("parts", [])
     )
+
+    content = "".join(
+        str(part.get("text", ""))
+        for part in parts
+        if isinstance(part, dict)
+    ).strip()
 
     if not content:
         raise ValueError(
-            "Ollama returned an empty SQL response."
+            "Gemini returned an empty SQL response."
         )
 
     result = _extract_json(content)
