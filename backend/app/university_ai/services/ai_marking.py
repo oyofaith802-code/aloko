@@ -156,6 +156,37 @@ def extract_matric_number(
     return match.group(1).strip() or None
 
 
+def extract_matric_number_from_text(
+    text: str,
+) -> Optional[str]:
+    """
+    Extract a matriculation number from uploaded answer text.
+
+    Supports labels such as:
+        MATRIC NUMBER: CSC2024001
+        MATRIC NO: CSC2024001
+        REGISTRATION NUMBER: CSC2024001
+        REG NO: CSC2024001
+    """
+    if not text:
+        return None
+
+    patterns = [
+        r"(?im)\bmatric(?:ulation)?\s*(?:number|no\.?|#)?\s*[:=\-]?\s*([A-Za-z0-9][A-Za-z0-9_\\/\-]*[A-Za-z0-9])",
+        r"(?im)\bregistration\s*(?:number|no\.?|#)?\s*[:=\-]?\s*([A-Za-z0-9][A-Za-z0-9_\\/\-]*[A-Za-z0-9])",
+        r"(?im)\breg\s*(?:number|no\.?|#)?\s*[:=\-]?\s*([A-Za-z0-9][A-Za-z0-9_\\/\-]*[A-Za-z0-9])",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            value = match.group(1).strip()
+            if value:
+                return value
+
+    return None
+
+
 def find_student_by_matric(
     db: Session,
     university_id: int,

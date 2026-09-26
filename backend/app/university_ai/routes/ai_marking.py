@@ -35,6 +35,7 @@ from app.university_ai.models.academic import StudentCourse
 from app.university_ai.services.ai_marking import (
     save_marking_file,
     extract_matric_number,
+    extract_matric_number_from_text,
     find_student_by_matric,
     verify_student_enrollment,
     create_submission,
@@ -388,13 +389,26 @@ async def upload_student_answer_papers(
                 "Lecturer matching is required."
             )
 
-            # Matric number in filename is OPTIONAL.
+            # ------------------------------------------------
+            # EXTRACT STUDENT MATRIC NUMBER
+            # ------------------------------------------------
+            # Try the filename first.
             try:
                 matric = extract_matric_number(
                     filename
                 )
             except Exception:
                 matric = None
+
+            # If the filename does not contain a matric number,
+            # inspect the extracted answer-paper text.
+            if not matric:
+                try:
+                    matric = extract_matric_number_from_text(
+                        extracted_text
+                    )
+                except Exception:
+                    matric = None
 
             # ------------------------------------------------
             # AUTOMATIC STUDENT IDENTIFICATION
