@@ -759,8 +759,8 @@ def create_marking_job(
         total_submissions=len(submission_ids),
         processed_submissions=0,
         submission_ids=json.dumps(submission_ids),
-        ai_provider="gemini",
-        ai_model=os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
+        ai_provider="ollama",
+        ai_model=os.getenv("OLLAMA_MODEL", "llama3.2:1b"),
     )
 
     db.add(job)
@@ -783,7 +783,7 @@ def create_marking_result(
     confidence: Optional[float],
     grading_evidence: Optional[str],
     feedback: Optional[str],
-    ai_provider: Optional[str] = "gemini",
+    ai_provider: Optional[str] = "ollama",
     ai_model: Optional[str] = None,
 ) -> AIMarkingResult:
 
@@ -829,7 +829,7 @@ def mark_answer_with_ai(
     answer: str,
 ) -> dict:
     """
-    Mark ONE student's answer against ONE question using Gemini.
+    Mark ONE student's answer against ONE question using Ollama.
     """
 
     answer = (answer or "").strip()
@@ -846,16 +846,15 @@ def mark_answer_with_ai(
             ),
         }
 
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
-    gemini_model = os.getenv(
-        "GEMINI_MODEL",
-        "gemini-3.8-flash",
-    )
+    ollama_host = os.getenv(
+        "OLLAMA_HOST",
+        "http://localhost:11434",
+    ).rstrip("/")
 
-    if not gemini_api_key:
-        raise RuntimeError(
-            "GEMINI_API_KEY is not configured."
-        )
+    ollama_model = os.getenv(
+        "OLLAMA_MODEL",
+        "llama3.2:1b",
+    )
 
     prompt = f"""
 You are an academic marking assistant.
@@ -908,71 +907,52 @@ Required JSON:
 }}
 """
 
-    gemini_url = (
-        "https://generativelanguage.googleapis.com/"
-        f"v1beta/models/{gemini_model}:generateContent"
-    )
+    ollama_url = f"{ollama_host}/api/chat"
 
     response = requests.post(
-        gemini_url,
+        ollama_url,
         headers={
-            "x-goog-api-key": gemini_api_key,
             "Content-Type": "application/json",
         },
         json={
-            "contents": [
+            "model": ollama_model,
+            "messages": [
                 {
-                    "parts": [
-                        {
-                            "text": prompt,
-                        }
-                    ]
+                    "role": "user",
+                    "content": prompt,
                 }
             ],
-            "generationConfig": {
+            "stream": False,
+            "format": "json",
+            "options": {
                 "temperature": 0.1,
-                "responseMimeType": "application/json",
             },
         },
-        timeout=120,
+        timeout=300,
     )
 
     response.raise_for_status()
 
     payload = response.json()
-    candidates = payload.get("candidates") or []
 
-    if not candidates:
-        raise ValueError(
-            "Gemini returned no marking result."
-        )
-
-    parts = (
-        candidates[0]
-        .get("content", {})
-        .get("parts", [])
+    raw = (
+        payload
+        .get("message", {})
+        .get("content", "")
     )
-
-    raw = ""
-
-    for part in parts:
-        part_text = part.get("text")
-
-        if part_text:
-            raw += part_text
 
     raw = raw.strip()
 
     if not raw:
         raise ValueError(
-            "Gemini returned an empty marking result."
+            "Ollama returned an empty marking result."
         )
 
     try:
         result = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise ValueError(
-            "Gemini returned invalid JSON while marking the answer."
+            "Ollama returned invalid JSON while marking the answer."
         ) from exc
 
     try:
@@ -1031,7 +1011,7 @@ Required JSON:
 
     if not grading_evidence:
         grading_evidence = (
-            "Gemini did not provide grading evidence."
+            "Ollama did not provide grading evidence."
         )
 
     if not feedback:
@@ -1045,4 +1025,3 @@ Required JSON:
         "grading_evidence": grading_evidence,
         "feedback": feedback,
     }
-

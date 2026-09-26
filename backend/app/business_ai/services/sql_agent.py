@@ -9,12 +9,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv(
-    "GEMINI_MODEL",
-    "gemini-3.8-flash",
-)
+OLLAMA_HOST = os.getenv(
+    "OLLAMA_HOST",
+    "http://localhost:11434",
+).rstrip("/")
 
+OLLAMA_MODEL = os.getenv(
+    "OLLAMA_MODEL",
+    "llama3.2:1b",
+)
 
 # ============================================================
 # JSON EXTRACTION
@@ -1443,112 +1446,72 @@ Never return code fences.
 Never return text outside the JSON object.
 """
 
-    if not GEMINI_API_KEY:
-        raise RuntimeError(
-            "GEMINI_API_KEY is not configured for Business AI."
-        )
-
     payload = {
-        "contents": [
+        "model": OLLAMA_MODEL,
+        "messages": [
             {
-                "parts": [
-                    {
-                        "text": (
-                            system_prompt
-                            + "\n\nUSER BUSINESS QUESTION:\n"
-                            + question
-                        )
-                    }
-                ]
+                "role": "user",
+                "content": (
+                    system_prompt
+                    + "\n\nUSER BUSINESS QUESTION:\n"
+                    + question
+                ),
             }
-        ]
+        ],
+        "stream": False,
+        "format": "json",
+        "options": {
+            "temperature": 0.0,
+        },
     }
 
-    headers = {
-        "x-goog-api-key": GEMINI_API_KEY,
-        "Content-Type": "application/json",
-    }
-
-    transient_statuses = {
-        500,
-        503,
-        429,
-    }
-
-    models_to_try = [
-        GEMINI_MODEL,
-    ]
-
-    fallback_model = "gemini-3.7-flash"
-
-    if GEMINI_MODEL != fallback_model:
-        models_to_try.append(fallback_model)
+    ollama_url = f"{OLLAMA_HOST}/api/chat"
 
     response = None
-    model_errors = []
+    last_error = None
 
-    for model_name in models_to_try:
-        gemini_url = GEMINI_API_URL.format(
-            model=model_name
-        )
+    for attempt in range(3):
+        try:
+            response = requests.post(
+                ollama_url,
+                headers={
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=300,
+            )
 
-        response = None
-        model_last_error = None
+            if response.ok:
+                break
 
-        for attempt in range(3):
-            try:
-                response = requests.post(
-                    gemini_url,
-                    headers=headers,
-                    json=payload,
-                    timeout=300,
-                )
+            last_error = (
+                f"attempt={attempt + 1}, "
+                f"HTTP {response.status_code}, "
+                f"body={response.text[:1000]}"
+            )
 
-                if response.status_code not in transient_statuses:
-                    break
+            if attempt < 2:
+                time.sleep(2 ** attempt)
 
-                model_last_error = (
-                    f"model={model_name}, "
-                    f"attempt={attempt + 1}, "
-                    f"HTTP {response.status_code}, "
-                    f"body={response.text[:1000]}"
-                )
+        except requests.RequestException as exc:
+            last_error = (
+                f"attempt={attempt + 1}, "
+                f"request_error={exc}"
+            )
 
-                if attempt < 2:
-                    time.sleep(2 ** attempt)
-
-            except requests.RequestException as exc:
-                model_last_error = (
-                    f"model={model_name}, "
-                    f"attempt={attempt + 1}, "
-                    f"request_error={exc}"
-                )
-
-                if attempt < 2:
-                    time.sleep(2 ** attempt)
-                else:
-                    response = None
-
-        if response is not None and (
-            response.status_code not in transient_statuses
-        ):
-            break
-
-        if model_last_error:
-            model_errors.append(model_last_error)
+            if attempt < 2:
+                time.sleep(2 ** attempt)
 
     if response is None:
         raise RuntimeError(
-            "Gemini request failed after trying "
-            f"{len(models_to_try)} model(s). "
-            + " | ".join(model_errors)
+            "Ollama SQL request failed after 3 attempts. "
+            + str(last_error)
         )
 
-    if response.status_code in transient_statuses:
+    if not response.ok:
         raise RuntimeError(
-            "Gemini service temporarily unavailable "
-            "after retrying the primary and fallback models. "
-            + " | ".join(model_errors)
+            "Ollama SQL service returned an error after 3 attempts. "
+            + str(last_error)
         )
 
     response.raise_for_status()
@@ -1557,11 +1520,14 @@ Never return text outside the JSON object.
 
     content = (
         data
-        .get("candidates", [{}])[0]
-        .get("content", {})
-        .get("parts", [{}])[0]
-        .get("text", "")
+        .get("message", {})
+        .get("content", "")
     )
+
+    if not content:
+        raise ValueError(
+            "Ollama returned an empty SQL response."
+        )
 
     result = _extract_json(content)
 

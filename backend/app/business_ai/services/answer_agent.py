@@ -1,4 +1,4 @@
-﻿import json
+import json
 import os
 import re
 
@@ -7,16 +7,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GEMINI_API_URL = (
-    "https://generativelanguage.googleapis.com/"
-    "v1beta/models/{model}:generateContent"
-)
+OLLAMA_HOST = os.getenv(
+    "OLLAMA_HOST",
+    "http://localhost:11434",
+).rstrip("/")
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-GEMINI_MODEL = os.getenv(
-    "GEMINI_MODEL",
-    "gemini-3.8-flash",
+OLLAMA_MODEL = os.getenv(
+    "OLLAMA_MODEL",
+    "llama3.2:1b",
 )
 
 
@@ -65,11 +63,6 @@ def generate_business_answer(
     if not question or not question.strip():
         raise ValueError(
             "Question cannot be empty."
-        )
-
-    if not GEMINI_API_KEY:
-        raise RuntimeError(
-            "GEMINI_API_KEY is not configured for Business AI."
         )
 
     system_prompt = """
@@ -143,31 +136,33 @@ Never return text outside the JSON object.
         default=str,
     )
 
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {
-                        "text": (
-                            system_prompt
-                            + "\n\nBUSINESS ANALYSIS INPUT:\n"
-                            + user_content
-                        )
-                    }
-                ]
-            }
-        ]
-    }
+    prompt = (
+        system_prompt
+        + "\n\nBUSINESS ANALYSIS INPUT:\n"
+        + user_content
+    )
+
+    ollama_url = f"{OLLAMA_HOST}/api/chat"
 
     response = requests.post(
-        GEMINI_API_URL.format(
-            model=GEMINI_MODEL
-        ),
+        ollama_url,
         headers={
-            "x-goog-api-key": GEMINI_API_KEY,
             "Content-Type": "application/json",
         },
-        json=payload,
+        json={
+            "model": OLLAMA_MODEL,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            "stream": False,
+            "format": "json",
+            "options": {
+                "temperature": 0.1,
+            },
+        },
         timeout=120,
     )
 
@@ -177,11 +172,14 @@ Never return text outside the JSON object.
 
     content = (
         data
-        .get("candidates", [{}])[0]
-        .get("content", {})
-        .get("parts", [{}])[0]
-        .get("text", "")
+        .get("message", {})
+        .get("content", "")
     )
+
+    if not content:
+        raise ValueError(
+            "Ollama returned an empty business answer."
+        )
 
     result = _extract_json(content)
 
