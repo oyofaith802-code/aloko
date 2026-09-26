@@ -408,9 +408,11 @@ async def upload_student_answer_papers(
                 )
 
                 if student:
+                    department_id = course.get("department_id")
+
                     department = (
                         db.query(Department)
-                        .filter(Department.id == course.department_id)
+                        .filter(Department.id == department_id)
                         .first()
                     )
 
@@ -680,9 +682,11 @@ def run_ai_marking(
     pending_identity = 0
     pending_integrity = 0
 
+    department_id = course.get("department_id")
+
     department = (
         db.query(Department)
-        .filter(Department.id == course.department_id)
+        .filter(Department.id == department_id)
         .first()
     )
 
@@ -1078,9 +1082,11 @@ def match_submission_to_student(
             detail="Student not found.",
         )
 
+    department_id = course.get("department_id")
+
     department = (
         db.query(Department)
-        .filter(Department.id == course.department_id)
+        .filter(Department.id == department_id)
         .first()
     )
 
