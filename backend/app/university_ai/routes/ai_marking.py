@@ -27,6 +27,7 @@ from app.university_ai.models import (
 )
 
 from app.university_ai.models.people import Student, Lecturer
+from app.university_ai.models.university import Department
 
 from app.university_ai.models.attendance import AttendanceRecord
 from app.university_ai.models.academic import StudentCourse
@@ -407,13 +408,16 @@ async def upload_student_answer_papers(
                 )
 
                 if student:
+                    department = (
+                        db.query(Department)
+                        .filter(Department.id == course.department_id)
+                        .first()
+                    )
+
                     independent_mode = (
-                        getattr(
-                            getattr(course, "department", None),
-                            "name",
-                            "",
-                        )
-                        == "Independent Department"
+                        department is not None
+                        and department.name.strip().casefold()
+                        == "independent department"
                     )
 
                     if independent_mode:
@@ -676,13 +680,16 @@ def run_ai_marking(
     pending_identity = 0
     pending_integrity = 0
 
+    department = (
+        db.query(Department)
+        .filter(Department.id == course.department_id)
+        .first()
+    )
+
     independent_mode = (
-        getattr(
-            getattr(course, "department", None),
-            "name",
-            "",
-        )
-        == "Independent Department"
+        department is not None
+        and department.name.strip().casefold()
+        == "independent department"
     )
 
     try:
@@ -1071,13 +1078,16 @@ def match_submission_to_student(
             detail="Student not found.",
         )
 
+    department = (
+        db.query(Department)
+        .filter(Department.id == course.department_id)
+        .first()
+    )
+
     independent_mode = (
-        getattr(
-            getattr(course, "department", None),
-            "name",
-            "",
-        )
-        == "Independent Department"
+        department is not None
+        and department.name.strip().casefold()
+        == "independent department"
     )
 
     if not independent_mode:
