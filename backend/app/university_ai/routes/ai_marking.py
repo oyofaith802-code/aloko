@@ -24,6 +24,8 @@ from app.university_ai.models import (
     AssessmentSubmission,
     AIMarkingJob,
     AIMarkingResult,
+    Course,
+    CourseOffering,
 )
 
 from app.university_ai.models.people import Student, Lecturer
@@ -696,13 +698,42 @@ def run_ai_marking(
     pending_identity = 0
     pending_integrity = 0
 
-    department_id = course.get("department_id")
-
-    department = (
-        db.query(Department)
-        .filter(Department.id == department_id)
+    # Determine independent mode from the assessment's actual
+    # course offering -> course -> department.
+    #
+    # This is authoritative for the assessment being marked.
+    assessment_offering = (
+        db.query(CourseOffering)
+        .filter(
+            CourseOffering.id
+            == assessment.course_offering_id,
+        )
         .first()
     )
+
+    assessment_course = None
+
+    if assessment_offering:
+        assessment_course = (
+            db.query(Course)
+            .filter(
+                Course.id
+                == assessment_offering.course_id,
+            )
+            .first()
+        )
+
+    department = None
+
+    if assessment_course and assessment_course.department_id:
+        department = (
+            db.query(Department)
+            .filter(
+                Department.id
+                == assessment_course.department_id,
+            )
+            .first()
+        )
 
     independent_mode = (
         department is not None
