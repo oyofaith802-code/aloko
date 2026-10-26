@@ -1,10 +1,11 @@
-﻿import json
+import json
 import os
 import re
 import time
 
 import requests
 from dotenv import load_dotenv
+from app.services.groq_service import generate_response
 
 load_dotenv()
 
@@ -1447,110 +1448,12 @@ Never return code fences.
 Never return text outside the JSON object.
 """
 
-    if not GEMINI_API_KEY:
-        raise ValueError(
-            "GEMINI_API_KEY is not configured."
-        )
-
-    gemini_url = GEMINI_API_URL.format(
-        model=GEMINI_MODEL
+    content = generate_response(
+        system_prompt=system_prompt,
+        user_message="USER BUSINESS QUESTION:\\n" + question,
+        temperature=0.0,
+        max_tokens=2000,
     )
-
-    response = None
-    last_error = None
-
-    for attempt in range(3):
-        try:
-            response = requests.post(
-                gemini_url,
-                params={
-                    "key": GEMINI_API_KEY,
-                },
-                headers={
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "contents": [
-                        {
-                            "parts": [
-                                {
-                                    "text": (
-                                        system_prompt
-                                        + "\n\nUSER BUSINESS QUESTION:\n"
-                                        + question
-                                    )
-                                }
-                            ]
-                        }
-                    ],
-                    "generationConfig": {
-                        "temperature": 0.0,
-                        "responseMimeType": "application/json",
-                    },
-                },
-                timeout=300,
-            )
-
-            if response.ok:
-                break
-
-            last_error = (
-                f"attempt={attempt + 1}, "
-                f"HTTP {response.status_code}, "
-                f"body={response.text[:1000]}"
-            )
-
-            if attempt < 2:
-                time.sleep(2 ** attempt)
-
-        except requests.RequestException as exc:
-            last_error = (
-                f"attempt={attempt + 1}, "
-                f"request_error={exc}"
-            )
-
-            if attempt < 2:
-                time.sleep(2 ** attempt)
-
-    if response is None:
-        raise RuntimeError(
-            "Gemini SQL request failed after 3 attempts. "
-            + str(last_error)
-        )
-
-    if not response.ok:
-        raise RuntimeError(
-            "Gemini SQL service returned an error after 3 attempts. "
-            + str(last_error)
-        )
-
-    response.raise_for_status()
-
-    data = response.json()
-
-    candidates = data.get("candidates") or []
-
-    if not candidates:
-        raise ValueError(
-            "Gemini returned no SQL response."
-        )
-
-    parts = (
-        candidates[0]
-        .get("content", {})
-        .get("parts", [])
-    )
-
-    content = "".join(
-        str(part.get("text", ""))
-        for part in parts
-        if isinstance(part, dict)
-    ).strip()
-
-    if not content:
-        raise ValueError(
-            "Gemini returned an empty SQL response."
-        )
 
     result = _extract_json(content)
 

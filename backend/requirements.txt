@@ -26,3 +26,5 @@ sentence-transformers
 argostranslate
 
 psycopg[binary]
+
+groq
