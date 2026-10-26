@@ -11,6 +11,8 @@ from typing import Optional
 import requests
 from sqlalchemy.orm import Session
 
+from app.services.groq_service import generate_response
+
 from app.business_ai.extractors.pdf_extractor import extract_pdf
 from app.business_ai.extractors.docx_extractor import extract_docx
 
@@ -759,8 +761,8 @@ def create_marking_job(
         total_submissions=len(submission_ids),
         processed_submissions=0,
         submission_ids=json.dumps(submission_ids),
-        ai_provider="gemini",
-        ai_model=os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
+        ai_provider="groq",
+        ai_model=os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
     )
 
     db.add(job)
@@ -783,7 +785,7 @@ def create_marking_result(
     confidence: Optional[float],
     grading_evidence: Optional[str],
     feedback: Optional[str],
-    ai_provider: Optional[str] = "gemini",
+    ai_provider: Optional[str] = "groq",
     ai_model: Optional[str] = None,
 ) -> AIMarkingResult:
 
@@ -846,21 +848,6 @@ def mark_answer_with_ai(
             ),
         }
 
-    gemini_api_key = os.getenv(
-        "GEMINI_API_KEY",
-        "",
-    ).strip()
-
-    gemini_model = os.getenv(
-        "GEMINI_MODEL",
-        "gemini-3.8-flash",
-    ).strip()
-
-    if not gemini_api_key:
-        raise ValueError(
-            "GEMINI_API_KEY is not configured."
-        )
-
     prompt = f"""
 You are an academic marking assistant.
 
@@ -910,112 +897,27 @@ Required JSON:
 }}
 """
 
-    gemini_url = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{gemini_model}:generateContent"
-    )
-
-    import time
-
-    models_to_try = [
-        gemini_model,
-        "gemini-2.5-flash",
-    ]
-
-    response = None
-    last_error = None
-
-    for model_index, model_name in enumerate(models_to_try):
-        retry_url = (
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{model_name}:generateContent"
-        )
-
-        for attempt in range(3):
-            try:
-                response = requests.post(
-                    retry_url,
-                    params={
-                        "key": gemini_api_key,
-                    },
-                    headers={
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "contents": [
-                            {
-                                "parts": [
-                                    {
-                                        "text": prompt,
-                                    }
-                                ]
-                            }
-                        ],
-                        "generationConfig": {
-                            "temperature": 0.1,
-                            "responseMimeType": "application/json",
-                        },
-                    },
-                    timeout=300,
-                )
-
-                if response.status_code < 500:
-                    break
-
-                last_error = (
-                    f"Gemini returned HTTP {response.status_code} "
-                    f"using {model_name}."
-                )
-
-            except requests.RequestException as exc:
-                last_error = str(exc)
-
-            if attempt < 2:
-                time.sleep(2 ** attempt)
-
-        if response is not None and response.status_code < 500:
-            break
-
-        response = None
-
-    if response is None:
-        raise RuntimeError(
-            last_error or "Gemini AI marking request failed."
-        )
-
-    response.raise_for_status()
-
-    payload = response.json()
-
-    candidates = payload.get("candidates") or []
-
-    if not candidates:
-        raise ValueError(
-            "Gemini returned no marking result."
-        )
-
-    parts = (
-        candidates[0]
-        .get("content", {})
-        .get("parts", [])
-    )
-
-    raw = "".join(
-        str(part.get("text", ""))
-        for part in parts
-        if isinstance(part, dict)
+    raw = generate_response(
+        system_prompt=(
+            "You are a fair academic marking assistant. "
+            "Return valid JSON only with score, confidence, "
+            "grading_evidence, and feedback. Do not use Markdown."
+        ),
+        user_message=prompt,
+        model=os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
+        temperature=0.1,
+        max_tokens=1024,
     ).strip()
 
-    if not raw:
-        raise ValueError(
-            "Gemini returned an empty marking result."
-        )
+    # Handle models that wrap JSON in Markdown fences.
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?\\s*|\\s*```$", "", raw).strip()
 
     try:
         result = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise ValueError(
-            "Ollama returned invalid JSON while marking the answer."
+            "Groq returned invalid JSON while marking the answer."
         ) from exc
 
     try:
@@ -1074,7 +976,7 @@ Required JSON:
 
     if not grading_evidence:
         grading_evidence = (
-            "Gemini did not provide grading evidence."
+            "Groq did not provide grading evidence."
         )
 
     if not feedback:
