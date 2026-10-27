@@ -1,4 +1,4 @@
-import json
+﻿import json
 import secrets
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -140,7 +140,7 @@ def get_widget_settings(
         db.commit()
         db.refresh(config)
 
-    api_base = "https://aloko-1.onrender.com"
+    api_base = "https://aloko.onrender.com"
     embed_code = (
         f'<script src="{api_base}/customer-support/widget.js" '
         f'data-widget-id="{config.public_id}" defer></script>'
@@ -483,3 +483,4 @@ def website_widget_script():
 """
     return Response(content=script, media_type="application/javascript",
                     headers={"Cache-Control": "public, max-age=300"})
+
