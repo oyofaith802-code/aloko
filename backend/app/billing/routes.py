@@ -125,6 +125,12 @@ def create_checkout(
         raise HTTPException(status_code=502, detail="Could not initialize checkout.")
 
     if response.status_code >= 400 or not result.get("status"):
+        # Log the provider's reason for diagnosis; never log request headers or secrets.
+        provider_message = str(result.get("message") or "No provider message")[:500]
+        print(
+            f"Paystack checkout rejected: HTTP {response.status_code}; "
+            f"message={provider_message}; currency={currency}"
+        )
         row.status = "initialization_failed"
         db.commit()
         raise HTTPException(status_code=502, detail="Payment provider rejected checkout.")
