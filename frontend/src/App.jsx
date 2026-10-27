@@ -1389,6 +1389,10 @@ setAuthError("");
   ======================================================= */
 
   function saveUserSession(data) {
+    if (data?.access_token) {
+      localStorage.setItem("aloko_access_token", data.access_token);
+    }
+
     const session = {
       user_id: data.user_id,
       email: data.email,
@@ -1572,14 +1576,6 @@ setAuthError("");
       }
 
     } catch (err) {
-
-      if (
-        err.message ===
-        "Email not verified. Please verify your email before signing in."
-      ) {
-        setAuthStep("verification");
-        setVerificationCode("");
-      }
       setAuthError(
         err.message ||
         "Authentication failed."
@@ -7104,6 +7100,7 @@ setPage("video");
 
 
 export default App;
+
 
 
 

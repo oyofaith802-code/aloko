@@ -73,7 +73,13 @@ export async function signup(data) {
     }
   );
 
-  return handleResponse(response, "Signup failed");
+  const result = await handleResponse(response, "Signup failed");
+
+  if (result.access_token) {
+    setAuthToken(result.access_token);
+  }
+
+  return result;
 }
 
 
@@ -2230,3 +2236,4 @@ export async function deleteBusinessDataset(workspaceId, datasetId) {
 
   return handleResponse(response, "Failed to delete business dataset");
 }
+
