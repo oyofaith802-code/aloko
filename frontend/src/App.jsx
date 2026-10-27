@@ -1,4 +1,5 @@
-﻿import {
+﻿import CustomerSupportAI from "./CustomerSupportAI.jsx";
+import {
   useEffect,
   useMemo,
   useRef,
@@ -3571,6 +3572,9 @@ setPage("video");
      BUSINESS AI
   ======================================================= */
 
+  if (page === "customer-support" || window.location.pathname.replace(/\/+$/, "") === "/billing/callback") {
+    return <CustomerSupportAI onBack={() => { window.history.replaceState({}, "", "/"); setPage("home"); }} />;
+  }
   if (page === "business") {
     return <BusinessAIWorkspace onBack={() => setPage("home")} />;
   }
@@ -4512,9 +4516,21 @@ setPage("video");
                 </p>
 
                 <span className="feature-link">
-                  Open Business AI 
+                  Open Business AI
                 </span>
 
+              </button>
+
+              <button
+                className="feature-card business-card"
+                type="button"
+                onClick={() => setPage("customer-support")}
+                style={{ textAlign: "left", cursor: "pointer" }}
+              >
+                <div className="feature-icon">💬</div>
+                <h3>Customer Support AI</h3>
+                <p>Create your company support workspace, add knowledge, test AI replies, and subscribe securely with Paystack.</p>
+                <span className="feature-link">Open Customer Support AI</span>
               </button>
 
             </div>
@@ -5621,9 +5637,21 @@ setPage("video");
                 </p>
 
                 <span className="feature-link">
-                  Open Business AI 
+                  Open Business AI
                 </span>
 
+              </button>
+
+              <button
+                className="feature-card business-card"
+                type="button"
+                onClick={() => setPage("customer-support")}
+                style={{ textAlign: "left", cursor: "pointer" }}
+              >
+                <div className="feature-icon">💬</div>
+                <h3>Customer Support AI</h3>
+                <p>Create your company support workspace, add knowledge, test AI replies, and subscribe securely with Paystack.</p>
+                <span className="feature-link">Open Customer Support AI</span>
               </button>
 
             </div>
@@ -7100,14 +7128,3 @@ setPage("video");
 
 
 export default App;
-
-
-
-
-
-
-
-
-
-
-

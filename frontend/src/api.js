@@ -2237,3 +2237,91 @@ export async function deleteBusinessDataset(workspaceId, datasetId) {
   return handleResponse(response, "Failed to delete business dataset");
 }
 
+
+// ============================================================
+// CUSTOMER SUPPORT AI + BILLING
+// ============================================================
+
+async function customerSupportRequest(path, options = {}) {
+  const response = await authFetch(`${API_BASE_URL}${path}`, options);
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const detail = result?.detail;
+    const error = new Error(
+      typeof detail === "string"
+        ? detail
+        : detail?.message || result?.message || "Customer Support AI request failed."
+    );
+    error.status = response.status;
+    error.code = typeof detail === "object" ? detail?.code : undefined;
+    throw error;
+  }
+
+  return result;
+}
+
+export function getSupportWorkspaces() {
+  return customerSupportRequest("/customer-support/workspaces");
+}
+
+export function createSupportWorkspace(payload) {
+  return customerSupportRequest("/customer-support/workspaces", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getSupportWorkspace(id) {
+  return customerSupportRequest(`/customer-support/workspaces/${Number(id)}`);
+}
+
+export function getSupportKnowledge(id) {
+  return customerSupportRequest(`/customer-support/workspaces/${Number(id)}/knowledge`);
+}
+
+export function addSupportKnowledge(id, payload) {
+  return customerSupportRequest(`/customer-support/workspaces/${Number(id)}/knowledge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteSupportKnowledge(workspaceId, knowledgeId) {
+  return customerSupportRequest(
+    `/customer-support/workspaces/${Number(workspaceId)}/knowledge/${Number(knowledgeId)}`,
+    { method: "DELETE" }
+  );
+}
+
+export function testSupportChat(workspaceId, payload) {
+  return customerSupportRequest(
+    `/customer-support/workspaces/${Number(workspaceId)}/test-chat`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export function getSupportSubscriptionStatus() {
+  return customerSupportRequest("/billing/customer-support/status");
+}
+
+export function startSupportCheckout(currency) {
+  return customerSupportRequest("/billing/customer-support/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currency }),
+  });
+}
+
+export function verifySupportCheckout(reference) {
+  return customerSupportRequest(
+    `/billing/customer-support/verify/${encodeURIComponent(reference)}`,
+    { method: "POST" }
+  );
+}
