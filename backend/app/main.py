@@ -40,6 +40,15 @@ from app.business_ai.models import (
     BusinessMemory,
 )
 
+# Customer Support Agent models
+from app.customer_support.models import (
+    SupportWorkspace,
+    SupportKnowledgeItem,
+    SupportConversation,
+    SupportMessage,
+)
+
+
 
 # ============================================================
 # ROUTES
@@ -108,6 +117,11 @@ from app.university_ai.routes.lecturer import (
 # University Student
 from app.university_ai.routes.student_routes import (
     router as university_student_router,
+)
+
+
+from app.customer_support.routes import (
+    router as customer_support_router,
 )
 
 
@@ -390,6 +404,11 @@ app.include_router(
 
 app.include_router(
     business_api_router
+)
+
+# Customer Support Agent
+app.include_router(
+    customer_support_router
 )
 
 
