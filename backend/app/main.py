@@ -48,6 +48,9 @@ from app.customer_support.models import (
     SupportMessage,
 )
 
+# Subscription billing models must load before create_all.
+from app.billing.models import AlokoSubscription, CustomerSupportUsage
+
 
 
 # ============================================================
@@ -123,6 +126,8 @@ from app.university_ai.routes.student_routes import (
 from app.customer_support.routes import (
     router as customer_support_router,
 )
+
+from app.billing.routes import router as billing_router
 
 
 # ============================================================
@@ -410,6 +415,9 @@ app.include_router(
 app.include_router(
     customer_support_router
 )
+
+# Customer Support AI subscription billing
+app.include_router(billing_router)
 
 
 # ------------------------------------------------------------

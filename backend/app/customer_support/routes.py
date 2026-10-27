@@ -1,3 +1,6 @@
+from datetime import datetime, timezone
+from sqlalchemy.exc import IntegrityError
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -12,6 +15,7 @@ from app.customer_support.models import (
     SupportMessage,
 )
 from app.customer_support.agent import generate_support_reply
+from app.billing.models import AlokoSubscription, CustomerSupportUsage
 
 
 router = APIRouter(
@@ -278,6 +282,60 @@ def test_chat(
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
+
+    # Paid access is granted only by a verified, unexpired subscription.
+    now = datetime.now(timezone.utc)
+    active_subscription = (
+        db.query(AlokoSubscription)
+        .filter(
+            AlokoSubscription.user_id == user.id,
+            AlokoSubscription.product == "customer_support",
+            AlokoSubscription.status == "active",
+            AlokoSubscription.period_end > now,
+        )
+        .order_by(AlokoSubscription.period_end.desc())
+        .first()
+    )
+
+    # Subscribers can chat without consuming their free-test allowance.
+    if not active_subscription:
+        usage = (
+            db.query(CustomerSupportUsage)
+            .filter(CustomerSupportUsage.user_id == user.id)
+            .with_for_update()
+            .first()
+        )
+
+        if usage is None:
+            usage = CustomerSupportUsage(user_id=user.id, free_test_used=False)
+            db.add(usage)
+            try:
+                db.commit()
+            except IntegrityError:
+                # Another request may have created the row concurrently.
+                db.rollback()
+
+            usage = (
+                db.query(CustomerSupportUsage)
+                .filter(CustomerSupportUsage.user_id == user.id)
+                .with_for_update()
+                .first()
+            )
+
+        if usage is None or usage.free_test_used:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "code": "subscription_required",
+                    "message": "Your one free AI test chat has been used. Subscribe to Customer Support AI to continue.",
+                    "prices": {"NGN": 5000, "USD": 5},
+                },
+            )
+
+        # Commit the allowance before generating a reply so parallel requests
+        # cannot both use the same free test.
+        usage.free_test_used = True
+        db.commit()
 
     history = (
         db.query(SupportMessage)
