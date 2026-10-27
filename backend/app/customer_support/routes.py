@@ -322,12 +322,34 @@ def test_chat(
                 .first()
             )
 
-        if usage is None or usage.free_test_used:
+        test_message_count = (
+            db.query(SupportMessage)
+            .join(
+                SupportConversation,
+                SupportMessage.conversation_id == SupportConversation.id,
+            )
+            .join(
+                SupportWorkspace,
+                SupportConversation.workspace_id == SupportWorkspace.id,
+            )
+            .filter(
+                SupportWorkspace.user_id == user.id,
+                SupportConversation.channel.in_(["web_test", "website_widget"]),
+                SupportMessage.sender_type == "customer",
+            )
+            .count()
+        )
+        # Preserve the old one-free-test flag for accounts that used the
+        # previous allowance before message history was available.
+        if usage is not None and usage.free_test_used:
+            test_message_count = max(test_message_count, 1)
+
+        if usage is None or test_message_count >= 2:
             raise HTTPException(
                 status_code=402,
                 detail={
                     "code": "subscription_required",
-                    "message": "Your one free AI test chat has been used. Subscribe to Customer Support AI to continue.",
+                    "message": "Your 2 free AI test messages have been used. Subscribe to Customer Support AI to continue.",
                     "prices": {"NGN": 5000, "USD": 5},
                 },
             )

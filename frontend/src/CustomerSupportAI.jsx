@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   addSupportKnowledge,
   createSupportWorkspace,
@@ -205,7 +205,7 @@ export default function CustomerSupportAI({ onBack }) {
     } catch (err) {
       setError(err.message);
       if (err.status === 402 || err.code === "subscription_required") {
-        setNotice("Your free AI test has been used. Choose a plan below to continue.");
+        setNotice("Your 2 free AI test messages have been used. Choose a plan below to continue.");
       }
     } finally {
       setLoading(false);
@@ -380,7 +380,7 @@ export default function CustomerSupportAI({ onBack }) {
 
           <section style={styles.panel}>
             <h2 style={{ marginTop: 0 }}>Test your AI support assistant</h2>
-            <p>One free test chat is available per account. Add knowledge first for more relevant answers.</p>
+            <p>Two free AI test messages are available per account. Add knowledge first for more relevant answers.</p>
             <form onSubmit={handleTestChat}>
               <label>Your test question
                 <textarea style={styles.field} rows={3} required value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask about your company's products, policies or services…" />

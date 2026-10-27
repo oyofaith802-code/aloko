@@ -1,4 +1,4 @@
-﻿import json
+import json
 import secrets
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -253,7 +253,34 @@ async def public_widget_chat(
 
     owner_id = workspace.user_id
     if not _active_subscription(owner_id, db):
-        raise HTTPException(status_code=402, detail="The workspace subscription is inactive.")
+        free_widget_count = (
+            db.query(SupportMessage)
+            .join(
+                SupportConversation,
+                SupportMessage.conversation_id == SupportConversation.id,
+            )
+            .join(
+                SupportWorkspace,
+                SupportConversation.workspace_id == SupportWorkspace.id,
+            )
+            .filter(
+                SupportWorkspace.user_id == owner_id,
+                SupportConversation.channel.in_(["web_test", "website_widget"]),
+                SupportMessage.sender_type == "customer",
+            )
+            .count()
+        )
+        if free_widget_count >= 2:
+            response = Response(
+                content=json.dumps({
+                    "code": "subscription_required",
+                    "message": "You've used your 2 free website chat messages. Subscribe to Customer Support AI for NGN 5000 or USD 5 for 30 days to continue.",
+                    "prices": {"NGN": 5000, "USD": 5},
+                }),
+                status_code=402,
+                media_type="application/json",
+            )
+            return _cors(response, origin)
 
     # A simple per-widget global safety cap; the DB-backed count works across workers.
     # This is not a substitute for edge/IP rate limiting on a public production service.
@@ -466,7 +493,10 @@ def website_widget_script():
         })
       });
       var result = await response.json().catch(function () { return {}; });
-      if (!response.ok) throw new Error(result.detail || "Unable to send your message.");
+      if (!response.ok) throw new Error(
+        result.message ||
+        (typeof result.detail === "string" ? result.detail : "Unable to send your message.")
+      );
       conversationId = result.conversation_id;
       visitorToken = result.visitor_token || visitorToken;
       addMessage(result.reply || "Sorry, I couldn't generate a reply.", "ai");
