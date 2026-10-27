@@ -18,6 +18,7 @@ from app.business_ai.services.sql_agent import generate_sql
 from app.business_ai.services.sql_engine import run_safe_query
 from app.business_ai.services.answer_agent import (
     generate_business_answer,
+    generate_general_business_answer,
 )
 from app.business_ai.services.metrics_engine import (
     analyze_business_metrics,
@@ -39,6 +40,60 @@ class AnalysisRequest(BaseModel):
         min_length=1,
         max_length=2000,
     )
+
+
+
+def _return_general_business_answer(
+    *,
+    question,
+    workspace,
+    current_user,
+    db,
+    schemas=None,
+    limitation="",
+):
+    result = generate_general_business_answer(
+        question=question,
+        dataset_context=schemas or [],
+        limitation=limitation,
+    )
+
+    answer = result["answer"]
+    memory = BusinessMemory(
+        workspace_id=workspace.id,
+        user_id=current_user.id,
+        question=question,
+        sql_query=None,
+        result_summary=None,
+        ai_answer=answer,
+        chart_type=None,
+    )
+
+    db.add(memory)
+    db.commit()
+    db.refresh(memory)
+
+    return {
+        "success": True,
+        "answerable": True,
+        "analysis_type": "general_advice",
+        "question": question,
+        "answer": answer,
+        "key_findings": result.get("key_findings", []),
+        "caveats": result.get("caveats", []),
+        "reason": limitation or "",
+        "sql": None,
+        "summary": {},
+        "rows": [],
+        "metrics": [],
+        "selected_metrics": [],
+        "chart": {"type": "none"},
+        "chart_decision": {
+            "chart_type": "none",
+            "reason": "General business advice does not require a data chart.",
+        },
+        "memory_id": memory.id,
+    }
 
 
 @router.post("/ask")
@@ -81,12 +136,6 @@ def ask_business_question(
         .all()
     )
 
-    if not datasets:
-        raise HTTPException(
-            status_code=400,
-            detail="No ready datasets are available in this workspace.",
-        )
-
     schemas = []
     allowed_tables = []
 
@@ -113,9 +162,16 @@ def ask_business_question(
         allowed_tables.append(dataset.table_name)
 
     if not schemas:
-        raise HTTPException(
-            status_code=400,
-            detail="No usable dataset schemas were found.",
+        return _return_general_business_answer(
+            question=data.question,
+            workspace=workspace,
+            current_user=current_user,
+            db=db,
+            limitation=(
+                "No ready datasets are available. "
+                "This response provides general business guidance, "
+                "not findings from uploaded business data."
+            ),
         )
 
     # ========================================================
@@ -152,38 +208,21 @@ def ask_business_question(
     if not sql_result.get("answerable"):
         reason = sql_result.get(
             "reason",
-            "This question cannot be answered from the available datasets.",
+            "The question does not require a database query.",
         )
 
-        memory = BusinessMemory(
-            workspace_id=workspace.id,
-            user_id=current_user.id,
+        return _return_general_business_answer(
             question=data.question,
-            sql_query=None,
-            result_summary=None,
-            ai_answer=reason,
-            chart_type=None,
+            workspace=workspace,
+            current_user=current_user,
+            db=db,
+            schemas=schemas,
+            limitation=(
+                "A data query was not produced. "
+                "Do not claim dataset-specific findings. "
+                f"SQL agent note: {reason}"
+            ),
         )
-
-        db.add(memory)
-        db.commit()
-        db.refresh(memory)
-
-        return {
-            "success": True,
-            "answerable": False,
-            "question": data.question,
-            "reason": reason,
-            "answer": reason,
-            "key_findings": [],
-            "caveats": [],
-            "metrics": [],
-            "selected_metrics": [],
-            "chart": {
-                "type": "none",
-            },
-            "memory_id": memory.id,
-        }
 
     # ========================================================
     # 5. GET GENERATED SQL
