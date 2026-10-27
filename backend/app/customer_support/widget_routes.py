@@ -253,34 +253,16 @@ async def public_widget_chat(
 
     owner_id = workspace.user_id
     if not _active_subscription(owner_id, db):
-        free_widget_count = (
-            db.query(SupportMessage)
-            .join(
-                SupportConversation,
-                SupportMessage.conversation_id == SupportConversation.id,
-            )
-            .join(
-                SupportWorkspace,
-                SupportConversation.workspace_id == SupportWorkspace.id,
-            )
-            .filter(
-                SupportWorkspace.user_id == owner_id,
-                SupportConversation.channel.in_(["web_test", "website_widget"]),
-                SupportMessage.sender_type == "customer",
-            )
-            .count()
+        response = Response(
+            content=json.dumps({
+                "code": "subscription_required",
+                "message": "An active Customer Support AI subscription is required to use the live website widget. Price: NGN 20000 for 30 days.",
+                "prices": {"NGN": 20000},
+            }),
+            status_code=402,
+            media_type="application/json",
         )
-        if free_widget_count >= 2:
-            response = Response(
-                content=json.dumps({
-                    "code": "subscription_required",
-                    "message": "You've used your 2 free website chat messages. Subscribe to Customer Support AI for NGN 5000 or USD 5 for 30 days to continue.",
-                    "prices": {"NGN": 5000, "USD": 5},
-                }),
-                status_code=402,
-                media_type="application/json",
-            )
-            return _cors(response, origin)
+        return _cors(response, origin)
 
     # A simple per-widget global safety cap; the DB-backed count works across workers.
     # This is not a substitute for edge/IP rate limiting on a public production service.

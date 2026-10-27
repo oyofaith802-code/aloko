@@ -883,8 +883,8 @@ setError(err.message || "Failed to load business workspace.");
 
                   <div className="business-panel">
                     <div className="business-panel-heading"><div><span className="result-label">ASK ALOKO</span><h3>What do you want to know?</h3></div></div>
-                    <p>Free access: one business question per account. Subscription: â‚¦20,000 for 30 days.</p>
-      {!businessSubscription.active && <button type="button" className="generate-button" onClick={handleBusinessCheckout} disabled={businessCheckoutLoading || businessSubscription.loading}>{businessCheckoutLoading ? "Opening Paystack..." : "Subscribe â€” â‚¦20,000 / 30 days"}</button>}
+                    <p>Free access: one business question per account. Subscription: ₦20,000 for 30 days.</p>
+      {!businessSubscription.active && <button type="button" className="generate-button" onClick={handleBusinessCheckout} disabled={businessCheckoutLoading || businessSubscription.loading}>{businessCheckoutLoading ? "Opening Paystack..." : "Subscribe — ₦20,000 / 30 days"}</button>}
     <form onSubmit={handleAsk} className="business-ask-mini">
                       <textarea value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Which products generate the most revenue?" maxLength={2000} />
                       <button className="generate-button" disabled={asking || !question.trim()}>{asking ? "Analyzing..." : "Analyze Business "}</button>
@@ -950,8 +950,8 @@ setError(err.message || "Failed to load business workspace.");
                   <span className="result-label">ASK ALOKO</span>
                   <h2>Ask a business question</h2>
                   <p>Aloko will translate your question into a safe read-only query, analyze the result, select useful metrics and choose a visualization.</p>
-                  <p>Free access: one business question per account. Subscription: â‚¦20,000 for 30 days.</p>
-      {!businessSubscription.active && <button type="button" className="generate-button" onClick={handleBusinessCheckout} disabled={businessCheckoutLoading || businessSubscription.loading}>{businessCheckoutLoading ? "Opening Paystack..." : "Subscribe â€” â‚¦20,000 / 30 days"}</button>}
+                  <p>Free access: one business question per account. Subscription: ₦20,000 for 30 days.</p>
+      {!businessSubscription.active && <button type="button" className="generate-button" onClick={handleBusinessCheckout} disabled={businessCheckoutLoading || businessSubscription.loading}>{businessCheckoutLoading ? "Opening Paystack..." : "Subscribe — ₦20,000 / 30 days"}</button>}
     <form onSubmit={handleAsk}>
                     <textarea className="business-question-box" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Example: What are our top 10 countries by sales?" maxLength={2000} />
                     <div className="business-question-footer"><span>{question.length} / 2000</span><button className="generate-button" disabled={asking || !question.trim()}>{asking ? "Analyzing business data..." : "Ask Aloko "}</button></div>
@@ -4237,7 +4237,7 @@ setPage("video");
                     >
                       <strong>Need help?</strong>
                       <br />
-                      Forgot your password or having trouble?
+                      No email verification is required. Keep your password safe; password recovery by email is not available yet.
                       <br />
                       <a
                         href="tel:+2348113019723"

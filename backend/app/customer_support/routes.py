@@ -350,7 +350,7 @@ def test_chat(
                 detail={
                     "code": "subscription_required",
                     "message": "Your 2 free AI test messages have been used. Subscribe to Customer Support AI to continue.",
-                    "prices": {"NGN": 5000, "USD": 5},
+                    "prices": {"NGN": 20000},
                 },
             )
 

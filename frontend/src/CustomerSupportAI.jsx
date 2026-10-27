@@ -245,7 +245,7 @@ export default function CustomerSupportAI({ onBack }) {
 
         {error && <div role="alert" style={{ ...styles.panel, borderColor: "#ef4444", color: "#b91c1c" }}>{error}</div>}
         {notice && <div role="status" style={{ ...styles.panel, borderColor: "#a5b4fc" }}>{notice}</div>}
-        {loading && <p aria-live="polite">Workingâ€¦</p>}
+        {loading && <p aria-live="polite">Working…</p>}
 
         <section style={styles.panel}>
           <h2 style={{ marginTop: 0 }}>Your workspace</h2>
@@ -253,7 +253,7 @@ export default function CustomerSupportAI({ onBack }) {
             <label style={{ display: "block", marginBottom: 18 }}>
               Select workspace
               <select style={styles.field} value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)}>
-                {workspaces.map((w) => <option key={w.id} value={w.id}>{w.name} â€” {w.industry}</option>)}
+                {workspaces.map((w) => <option key={w.id} value={w.id}>{w.name} — {w.industry}</option>)}
               </select>
             </label>
           )}
@@ -388,7 +388,7 @@ export default function CustomerSupportAI({ onBack }) {
             <p>Two free AI test messages are available per account. Add knowledge first for more relevant answers.</p>
             <form onSubmit={handleTestChat}>
               <label>Your test question
-                <textarea style={styles.field} rows={3} required value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask about your company's products, policies or servicesâ€¦" />
+                <textarea style={styles.field} rows={3} required value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask about your company's products, policies or services…" />
               </label>
               <button style={styles.button} type="submit" disabled={loading}>Send test message</button>
             </form>
@@ -408,9 +408,9 @@ export default function CustomerSupportAI({ onBack }) {
               ? `Subscription active until ${subscription.period_end ? new Date(subscription.period_end).toLocaleString() : "the displayed expiry date"}.`
               : "Your subscription includes 30 days of Customer Support AI access after verified payment."}
           </p>
-          <p><strong>â‚¦20,000 / 30 days</strong>. One-time payment, not automatic renewal.</p>
+          <p><strong>₦20,000 / 30 days</strong>. One-time payment, not automatic renewal.</p>
 <button style={styles.button} disabled={loading || subscription.active} onClick={handleCheckout}>
-{subscription.active ? "Subscription active" : "Pay â‚¦20,000 with Paystack"}
+{subscription.active ? "Subscription active" : "Pay ₦20,000 with Paystack"}
 </button>
           <button style={{ ...styles.secondary, marginLeft: 8 }} disabled={loading} onClick={() => refreshStatus().catch((err) => setError(err.message))}>
             Refresh subscription

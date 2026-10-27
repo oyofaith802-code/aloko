@@ -330,7 +330,7 @@ def create_business_ai_checkout(
         "reference": reference,
         "currency": "NGN",
         "amount_minor": BUSINESS_AMOUNT,
-        "display_price": "?20,000",
+        "display_price": "₦20,000",
         "authorization_url": result["data"]["authorization_url"],
     }
 
