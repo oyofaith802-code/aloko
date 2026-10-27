@@ -2307,6 +2307,23 @@ export function testSupportChat(workspaceId, payload) {
   );
 }
 
+export function getSupportWidgetSettings(workspaceId) {
+  return customerSupportRequest(
+    `/customer-support/widget/workspaces/${Number(workspaceId)}/settings`
+  );
+}
+
+export function saveSupportWidgetSettings(workspaceId, payload) {
+  return customerSupportRequest(
+    `/customer-support/widget/workspaces/${Number(workspaceId)}/settings`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
 export function getSupportSubscriptionStatus() {
   return customerSupportRequest("/billing/customer-support/status");
 }

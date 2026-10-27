@@ -92,3 +92,25 @@ class SupportMessage(Base):
     sender_type = Column(String(30), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class SupportWidgetConfig(Base):
+    __tablename__ = "support_widget_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    workspace_id = Column(
+        Integer,
+        ForeignKey("support_workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    public_id = Column(String(80), nullable=False, unique=True, index=True)
+    allowed_domains = Column(Text, nullable=False, default="")
+    is_enabled = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )

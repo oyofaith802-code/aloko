@@ -6,6 +6,8 @@ import {
   getSupportKnowledge,
   getSupportSubscriptionStatus,
   getSupportWorkspaces,
+  getSupportWidgetSettings,
+  saveSupportWidgetSettings,
   startSupportCheckout,
   testSupportChat,
   verifySupportCheckout,
@@ -34,6 +36,13 @@ export default function CustomerSupportAI({ onBack }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [widgetSettings, setWidgetSettings] = useState({
+    allowed_domains: [],
+    is_enabled: false,
+    embed_code: "",
+  });
+  const [domainInput, setDomainInput] = useState("");
+  const [widgetLoading, setWidgetLoading] = useState(false);
 
   const selectedWorkspace = workspaces.find((w) => String(w.id) === String(workspaceId));
 
@@ -92,6 +101,21 @@ export default function CustomerSupportAI({ onBack }) {
     initialize();
     return () => { alive = false; };
   }, [loadWorkspaces, refreshStatus]);
+
+  useEffect(() => {
+    let active = true;
+    setWidgetSettings({ allowed_domains: [], is_enabled: false, embed_code: "" });
+    if (workspaceId) {
+      getSupportWidgetSettings(workspaceId)
+        .then((result) => {
+          if (active) setWidgetSettings(result);
+        })
+        .catch((err) => {
+          if (active) setError(err.message || "Unable to load widget settings.");
+        });
+    }
+    return () => { active = false; };
+  }, [workspaceId]);
 
   useEffect(() => {
     setReply("");
@@ -253,6 +277,80 @@ export default function CustomerSupportAI({ onBack }) {
         </section>
 
         {selectedWorkspace && <>
+          <section style={styles.panel}>
+            <h2 style={{ marginTop: 0 }}>Website chat widget</h2>
+            <p>Embed Aloko Customer Support AI on your own website. An active Customer Support AI subscription is required for visitor chats.</p>
+            <form onSubmit={async (event) => {
+              event.preventDefault();
+              setWidgetLoading(true);
+              setError("");
+              setNotice("");
+              try {
+                const result = await saveSupportWidgetSettings(workspaceId, {
+                  allowed_domains: widgetSettings.allowed_domains,
+                  is_enabled: widgetSettings.is_enabled,
+                });
+                setWidgetSettings((current) => ({ ...current, ...result }));
+                setNotice(result.is_enabled ? "Website widget enabled." : "Website widget settings saved.");
+              } catch (err) {
+                setError(err.message || "Unable to save widget settings.");
+              } finally {
+                setWidgetLoading(false);
+              }
+            }}>
+              <label style={{ display: "block" }}>Allowed website domain
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <input style={{ ...styles.field, flex: "1 1 240px" }}
+                    placeholder="example.com"
+                    value={domainInput}
+                    onChange={(event) => setDomainInput(event.target.value)}
+                    aria-label="Website domain to allow" />
+                  <button type="button" style={styles.secondary} disabled={widgetLoading || !domainInput.trim()}
+                    onClick={() => {
+                      const value = domainInput.trim().replace(/^https?:\/\//i, "").replace(/\/$/, "");
+                      if (value && !widgetSettings.allowed_domains.includes(value)) {
+                        setWidgetSettings((current) => ({
+                          ...current,
+                          allowed_domains: [...current.allowed_domains, value],
+                        }));
+                      }
+                      setDomainInput("");
+                    }}>Add domain</button>
+                </div>
+              </label>
+              {widgetSettings.allowed_domains.map((domain) => (
+                <div key={domain} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "8px 0" }}>
+                  <span>{domain}</span>
+                  <button type="button" style={styles.secondary} onClick={() => setWidgetSettings((current) => ({
+                    ...current,
+                    allowed_domains: current.allowed_domains.filter((item) => item !== domain),
+                  }))}>Remove</button>
+                </div>
+              ))}
+              <label style={{ display: "flex", gap: 10, alignItems: "center", margin: "14px 0" }}>
+                <input type="checkbox" checked={Boolean(widgetSettings.is_enabled)}
+                  onChange={(event) => setWidgetSettings((current) => ({ ...current, is_enabled: event.target.checked }))} />
+                Enable website widget
+              </label>
+              <button style={styles.button} type="submit" disabled={widgetLoading}>
+                {widgetLoading ? "Saving?" : "Save widget settings"}
+              </button>
+            </form>
+            {widgetSettings.embed_code && <>
+              <h3>Embed code</h3>
+              <textarea readOnly rows={3} style={styles.field} value={widgetSettings.embed_code} />
+              <button type="button" style={styles.secondary}
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(widgetSettings.embed_code);
+                    setNotice("Embed code copied.");
+                  } catch {
+                    setError("Clipboard access failed. Select and copy the embed code manually.");
+                  }
+                }}>Copy embed code</button>
+            </>}
+          </section>
+
           <section style={styles.panel}>
             <h2 style={{ marginTop: 0 }}>Knowledge base</h2>
             <p>Add accurate information that the AI can use when responding to customer questions.</p>

@@ -50,6 +50,7 @@ from app.customer_support.models import (
 
 # Subscription billing models must load before create_all.
 from app.billing.models import AlokoSubscription, CustomerSupportUsage
+from app.customer_support.models import SupportWidgetConfig
 
 
 
@@ -128,6 +129,7 @@ from app.customer_support.routes import (
 )
 
 from app.billing.routes import router as billing_router
+from app.customer_support.widget_routes import router as customer_support_widget_router
 
 
 # ============================================================
@@ -418,6 +420,7 @@ app.include_router(
 
 # Customer Support AI subscription billing
 app.include_router(billing_router)
+app.include_router(customer_support_widget_router)
 
 
 # ------------------------------------------------------------
