@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+﻿import React, { useCallback, useEffect, useState } from "react";
 import {
   addSupportKnowledge,
   createSupportWorkspace,
@@ -11,6 +11,7 @@ import {
   startSupportCheckout,
   testSupportChat,
   verifySupportCheckout,
+  verifyBusinessAICheckout,
 } from "./api.js";
 
 const styles = {
@@ -32,7 +33,6 @@ export default function CustomerSupportAI({ onBack }) {
   const [message, setMessage] = useState("");
   const [reply, setReply] = useState("");
   const [conversationId, setConversationId] = useState(null);
-  const [currency, setCurrency] = useState("NGN");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -84,8 +84,13 @@ export default function CustomerSupportAI({ onBack }) {
           if (!reference) {
             setNotice("Payment return received, but no payment reference was provided. Check your subscription status.");
           } else {
-            await verifySupportCheckout(reference);
-            setNotice("Payment verified. Your Customer Support AI subscription is active for 30 days.");
+            if (params.get("product") === "business_ai") {
+              await verifyBusinessAICheckout(reference);
+              setNotice("Payment verified. Your Business AI subscription is active for 30 days.");
+            } else {
+              await verifySupportCheckout(reference);
+              setNotice("Payment verified. Your Customer Support AI subscription is active for 30 days.");
+            }
           }
           window.history.replaceState({}, "", "/");
         }
@@ -216,7 +221,7 @@ export default function CustomerSupportAI({ onBack }) {
     setLoading(true);
     setError("");
     try {
-      const result = await startSupportCheckout(currency);
+      const result = await startSupportCheckout();
       if (!result.authorization_url) throw new Error("Checkout link was not returned by the payment provider.");
       window.location.assign(result.authorization_url);
     } catch (err) {
@@ -228,7 +233,7 @@ export default function CustomerSupportAI({ onBack }) {
   return (
     <main style={styles.page}>
       <div style={styles.container}>
-        <button style={styles.secondary} onClick={onBack}>← Back to Aloko</button>
+        <button style={styles.secondary} onClick={onBack}>â† Back to Aloko</button>
         <header style={{ margin: "22px 0" }}>
           <p style={{ color: "#6366f1", fontWeight: 700, marginBottom: 6 }}>ALOKO BUSINESS AI</p>
           <h1 style={{ margin: "0 0 8px" }}>Customer Support AI</h1>
@@ -240,7 +245,7 @@ export default function CustomerSupportAI({ onBack }) {
 
         {error && <div role="alert" style={{ ...styles.panel, borderColor: "#ef4444", color: "#b91c1c" }}>{error}</div>}
         {notice && <div role="status" style={{ ...styles.panel, borderColor: "#a5b4fc" }}>{notice}</div>}
-        {loading && <p aria-live="polite">Working…</p>}
+        {loading && <p aria-live="polite">Workingâ€¦</p>}
 
         <section style={styles.panel}>
           <h2 style={{ marginTop: 0 }}>Your workspace</h2>
@@ -248,7 +253,7 @@ export default function CustomerSupportAI({ onBack }) {
             <label style={{ display: "block", marginBottom: 18 }}>
               Select workspace
               <select style={styles.field} value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)}>
-                {workspaces.map((w) => <option key={w.id} value={w.id}>{w.name} — {w.industry}</option>)}
+                {workspaces.map((w) => <option key={w.id} value={w.id}>{w.name} â€” {w.industry}</option>)}
               </select>
             </label>
           )}
@@ -383,7 +388,7 @@ export default function CustomerSupportAI({ onBack }) {
             <p>Two free AI test messages are available per account. Add knowledge first for more relevant answers.</p>
             <form onSubmit={handleTestChat}>
               <label>Your test question
-                <textarea style={styles.field} rows={3} required value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask about your company's products, policies or services…" />
+                <textarea style={styles.field} rows={3} required value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask about your company's products, policies or servicesâ€¦" />
               </label>
               <button style={styles.button} type="submit" disabled={loading}>Send test message</button>
             </form>
@@ -403,25 +408,20 @@ export default function CustomerSupportAI({ onBack }) {
               ? `Subscription active until ${subscription.period_end ? new Date(subscription.period_end).toLocaleString() : "the displayed expiry date"}.`
               : "Your subscription includes 30 days of Customer Support AI access after verified payment."}
           </p>
-          <p><strong>₦5,000 / 30 days</strong> or <strong>$5 / 30 days</strong>. This is a one-time payment, not automatic renewal.</p>
-          <label>Payment currency
-            <select style={styles.field} value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              <option value="NGN">NGN — ₦5,000</option>
-              <option value="USD">USD — $5</option>
-            </select>
-          </label>
-          <button style={styles.button} disabled={loading || subscription.active} onClick={handleCheckout}>
-            {subscription.active ? "Subscription active" : `Pay ${currency === "NGN" ? "₦5,000" : "$5"} with Paystack`}
-          </button>
+          <p><strong>â‚¦20,000 / 30 days</strong>. One-time payment, not automatic renewal.</p>
+<button style={styles.button} disabled={loading || subscription.active} onClick={handleCheckout}>
+{subscription.active ? "Subscription active" : "Pay â‚¦20,000 with Paystack"}
+</button>
           <button style={{ ...styles.secondary, marginLeft: 8 }} disabled={loading} onClick={() => refreshStatus().catch((err) => setError(err.message))}>
             Refresh subscription
           </button>
           <p style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.8 }}>
             Paid access is enabled only after the server confirms the payment with Paystack.
-            Available currencies and card acceptance depend on your Paystack account configuration.
+            Pay by card or bank transfer where supported by Paystack. International banks may convert NGN and charge fees.
           </p>
         </section>
       </div>
     </main>
   );
 }
+

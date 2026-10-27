@@ -2328,11 +2328,11 @@ export function getSupportSubscriptionStatus() {
   return customerSupportRequest("/billing/customer-support/status");
 }
 
-export function startSupportCheckout(currency) {
+export function startSupportCheckout() {
   return customerSupportRequest("/billing/customer-support/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ currency }),
+    body: JSON.stringify({ currency: "NGN" }),
   });
 }
 
@@ -2342,3 +2342,17 @@ export function verifySupportCheckout(reference) {
     { method: "POST" }
   );
 }
+
+
+export function getBusinessAISubscriptionStatus() {
+  return customerSupportRequest('/billing/business-ai/status');
+}
+
+export function startBusinessAICheckout() {
+  return customerSupportRequest('/billing/business-ai/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currency: 'NGN' }) });
+}
+
+export function verifyBusinessAICheckout(reference) {
+  return customerSupportRequest('/billing/business-ai/verify/' + encodeURIComponent(reference), { method: 'POST' });
+}
+

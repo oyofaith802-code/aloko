@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -8,6 +9,7 @@ from app.database.connection import get_db
 from app.core.security import get_current_user
 from app.models.user import User
 
+from app.billing.models import AlokoSubscription
 from app.business_ai.models import (
     BusinessWorkspace,
     BusinessDataset,
@@ -125,6 +127,28 @@ def ask_business_question(
     # ========================================================
     # 2. LOAD DATASETS
     # ========================================================
+
+
+    # BUSINESS_FREE_QUESTION_LIMIT: enforce one free question per authenticated account.
+    used_questions = db.query(BusinessMemory).filter(
+        BusinessMemory.user_id == current_user.id
+    ).count()
+    if used_questions >= 1:
+        now = datetime.now(timezone.utc)
+        active_business_subscription = db.query(AlokoSubscription).filter(
+            AlokoSubscription.user_id == current_user.id,
+            AlokoSubscription.product == "business_ai",
+            AlokoSubscription.status == "active",
+            AlokoSubscription.period_end > now,
+        ).first()
+        if not active_business_subscription:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "code": "subscription_required",
+                    "message": "Your one free Business AI question has been used. Subscribe for NGN 20,000 per 30 days to continue.",
+                },
+            )
 
     datasets = (
         db.query(BusinessDataset)

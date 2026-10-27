@@ -54,6 +54,9 @@ import {
   getBusinessDataset,
   uploadBusinessDataset,
   askBusinessAI,
+  getBusinessAISubscriptionStatus,
+  startBusinessAICheckout,
+  verifyBusinessAICheckout,
   getBusinessMemory,
   getBusinessReports,
   getBusinessReport,
@@ -532,6 +535,28 @@ function BusinessAIWorkspace({ onBack }) {
   const [question, setQuestion] = useState("");
   const [analysis, setAnalysis] = useState(null);
   const [asking, setAsking] = useState(false);
+  const [businessSubscription, setBusinessSubscription] = useState({ active: false, loading: true });
+  const [businessCheckoutLoading, setBusinessCheckoutLoading] = useState(false);
+
+  useEffect(() => {
+    getBusinessAISubscriptionStatus()
+      .then(data => setBusinessSubscription(data || { active: false }))
+      .catch(() => setBusinessSubscription({ active: false }))
+      .finally(() => setBusinessSubscription(v => ({ ...v, loading: false })));
+  }, []);
+
+  const handleBusinessCheckout = async () => {
+    try {
+      setBusinessCheckoutLoading(true);
+      setError("");
+      const result = await startBusinessAICheckout();
+      if (!result?.authorization_url) throw new Error("Paystack checkout link was not returned.");
+      window.location.assign(result.authorization_url);
+    } catch (e) {
+      setError(e.message || "Unable to start Business AI checkout.");
+      setBusinessCheckoutLoading(false);
+    }
+  };
 
   const [memory, setMemory] = useState([]);
   const [reports, setReports] = useState([]);
@@ -858,7 +883,9 @@ setError(err.message || "Failed to load business workspace.");
 
                   <div className="business-panel">
                     <div className="business-panel-heading"><div><span className="result-label">ASK ALOKO</span><h3>What do you want to know?</h3></div></div>
-                    <form onSubmit={handleAsk} className="business-ask-mini">
+                    <p>Free access: one business question per account. Subscription: â‚¦20,000 for 30 days.</p>
+      {!businessSubscription.active && <button type="button" className="generate-button" onClick={handleBusinessCheckout} disabled={businessCheckoutLoading || businessSubscription.loading}>{businessCheckoutLoading ? "Opening Paystack..." : "Subscribe â€” â‚¦20,000 / 30 days"}</button>}
+    <form onSubmit={handleAsk} className="business-ask-mini">
                       <textarea value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Which products generate the most revenue?" maxLength={2000} />
                       <button className="generate-button" disabled={asking || !question.trim()}>{asking ? "Analyzing..." : "Analyze Business "}</button>
                     </form>
@@ -923,7 +950,9 @@ setError(err.message || "Failed to load business workspace.");
                   <span className="result-label">ASK ALOKO</span>
                   <h2>Ask a business question</h2>
                   <p>Aloko will translate your question into a safe read-only query, analyze the result, select useful metrics and choose a visualization.</p>
-                  <form onSubmit={handleAsk}>
+                  <p>Free access: one business question per account. Subscription: â‚¦20,000 for 30 days.</p>
+      {!businessSubscription.active && <button type="button" className="generate-button" onClick={handleBusinessCheckout} disabled={businessCheckoutLoading || businessSubscription.loading}>{businessCheckoutLoading ? "Opening Paystack..." : "Subscribe â€” â‚¦20,000 / 30 days"}</button>}
+    <form onSubmit={handleAsk}>
                     <textarea className="business-question-box" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Example: What are our top 10 countries by sales?" maxLength={2000} />
                     <div className="business-question-footer"><span>{question.length} / 2000</span><button className="generate-button" disabled={asking || !question.trim()}>{asking ? "Analyzing business data..." : "Ask Aloko "}</button></div>
                   </form>
@@ -3842,7 +3871,7 @@ setPage("video");
 
               </>
 
-            ) : authMode === "forgot" ? (
+            ) : false && authMode === "forgot" ? (
 
               <>
 
@@ -3931,7 +3960,7 @@ setPage("video");
 
               </>
 
-            ) : authMode === "reset" ? (
+            ) : false && authMode === "reset" ? (
 
               <>
 
@@ -4122,7 +4151,7 @@ setPage("video");
                     }}
                   />
 
-                  {authMode === "login" && (
+                  {false && authMode === "login" && (
                     <button
                       type="button"
                       onClick={() => {
@@ -7128,3 +7157,6 @@ setPage("video");
 
 
 export default App;
+
+
+
