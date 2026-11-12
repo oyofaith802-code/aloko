@@ -143,7 +143,7 @@ def get_widget_settings(
 
     api_base = "https://aloko.onrender.com"
     embed_code = (
-        f'<script src="{api_base}/customer-support/widget.js" '
+        f'<script src="{api_base}/customer-support/widget/widget.js" '
         f'data-widget-id="{config.public_id}" defer></script>'
     )
     return {
@@ -154,7 +154,7 @@ def get_widget_settings(
         ],
         "is_enabled": config.is_enabled,
         "embed_code": embed_code,
-        "script_url": f"{api_base}/customer-support/widget.js",
+        "script_url": f"{api_base}/customer-support/widget/widget.js",
     }
 
 
