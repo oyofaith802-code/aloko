@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.billing.models import AlokoSubscription
 from app.core.security import get_current_user
 from app.customer_support.agent import generate_support_reply
+from app.customer_support.demo import is_demo_workspace
 from app.customer_support.models import (
     SupportConversation,
     SupportKnowledgeItem,
@@ -140,7 +141,7 @@ def get_widget_settings(
         db.commit()
         db.refresh(config)
 
-    api_base = "https://aloko-1.onrender.com"
+    api_base = "https://aloko.onrender.com"
     embed_code = (
         f'<script src="{api_base}/customer-support/widget.js" '
         f'data-widget-id="{config.public_id}" defer></script>'
@@ -252,7 +253,7 @@ async def public_widget_chat(
         raise HTTPException(status_code=403, detail="This website is not allowed to use the widget.")
 
     owner_id = workspace.user_id
-    if not _active_subscription(owner_id, db):
+    if not is_demo_workspace(workspace.id) and not _active_subscription(owner_id, db):
         response = Response(
             content=json.dumps({
                 "code": "subscription_required",

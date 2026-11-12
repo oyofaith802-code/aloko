@@ -15,6 +15,7 @@ from app.customer_support.models import (
     SupportMessage,
 )
 from app.customer_support.agent import generate_support_reply
+from app.customer_support.demo import is_demo_workspace
 from app.billing.models import AlokoSubscription, CustomerSupportUsage
 
 
@@ -283,38 +284,23 @@ def test_chat(
         db.commit()
         db.refresh(conversation)
 
-    # Paid access is granted only by a verified, unexpired subscription.
-    now = datetime.now(timezone.utc)
-    active_subscription = (
-        db.query(AlokoSubscription)
-        .filter(
-            AlokoSubscription.user_id == user.id,
-            AlokoSubscription.product == "customer_support",
-            AlokoSubscription.status == "active",
-            AlokoSubscription.period_end > now,
-        )
-        .order_by(AlokoSubscription.period_end.desc())
-        .first()
-    )
-
-    # Subscribers can chat without consuming their free-test allowance.
-    if not active_subscription:
-        usage = (
-            db.query(CustomerSupportUsage)
-            .filter(CustomerSupportUsage.user_id == user.id)
-            .with_for_update()
+    if not is_demo_workspace(workspace.id):
+        # Paid access is granted only by a verified, unexpired subscription.
+        now = datetime.now(timezone.utc)
+        active_subscription = (
+            db.query(AlokoSubscription)
+            .filter(
+                AlokoSubscription.user_id == user.id,
+                AlokoSubscription.product == "customer_support",
+                AlokoSubscription.status == "active",
+                AlokoSubscription.period_end > now,
+            )
+            .order_by(AlokoSubscription.period_end.desc())
             .first()
         )
 
-        if usage is None:
-            usage = CustomerSupportUsage(user_id=user.id, free_test_used=False)
-            db.add(usage)
-            try:
-                db.commit()
-            except IntegrityError:
-                # Another request may have created the row concurrently.
-                db.rollback()
-
+        # Subscribers can chat without consuming their free-test allowance.
+        if not active_subscription:
             usage = (
                 db.query(CustomerSupportUsage)
                 .filter(CustomerSupportUsage.user_id == user.id)
@@ -322,42 +308,58 @@ def test_chat(
                 .first()
             )
 
-        test_message_count = (
-            db.query(SupportMessage)
-            .join(
-                SupportConversation,
-                SupportMessage.conversation_id == SupportConversation.id,
-            )
-            .join(
-                SupportWorkspace,
-                SupportConversation.workspace_id == SupportWorkspace.id,
-            )
-            .filter(
-                SupportWorkspace.user_id == user.id,
-                SupportConversation.channel.in_(["web_test", "website_widget"]),
-                SupportMessage.sender_type == "customer",
-            )
-            .count()
-        )
-        # Preserve the old one-free-test flag for accounts that used the
-        # previous allowance before message history was available.
-        if usage is not None and usage.free_test_used:
-            test_message_count = max(test_message_count, 1)
+            if usage is None:
+                usage = CustomerSupportUsage(user_id=user.id, free_test_used=False)
+                db.add(usage)
+                try:
+                    db.commit()
+                except IntegrityError:
+                    # Another request may have created the row concurrently.
+                    db.rollback()
 
-        if usage is None or test_message_count >= 2:
-            raise HTTPException(
-                status_code=402,
-                detail={
-                    "code": "subscription_required",
-                    "message": "Your 2 free AI test messages have been used. Subscribe to Customer Support AI to continue.",
-                    "prices": {"NGN": 20000},
-                },
-            )
+                usage = (
+                    db.query(CustomerSupportUsage)
+                    .filter(CustomerSupportUsage.user_id == user.id)
+                    .with_for_update()
+                    .first()
+                )
 
-        # Commit the allowance before generating a reply so parallel requests
-        # cannot both use the same free test.
-        usage.free_test_used = True
-        db.commit()
+            test_message_count = (
+                db.query(SupportMessage)
+                .join(
+                    SupportConversation,
+                    SupportMessage.conversation_id == SupportConversation.id,
+                )
+                .join(
+                    SupportWorkspace,
+                    SupportConversation.workspace_id == SupportWorkspace.id,
+                )
+                .filter(
+                    SupportWorkspace.user_id == user.id,
+                    SupportConversation.channel.in_(["web_test", "website_widget"]),
+                    SupportMessage.sender_type == "customer",
+                )
+                .count()
+            )
+            # Preserve the old one-free-test flag for accounts that used the
+            # previous allowance before message history was available.
+            if usage is not None and usage.free_test_used:
+                test_message_count = max(test_message_count, 1)
+
+            if usage is None or test_message_count >= 2:
+                raise HTTPException(
+                    status_code=402,
+                    detail={
+                        "code": "subscription_required",
+                        "message": "Your 2 free AI test messages have been used. Subscribe to Customer Support AI to continue.",
+                        "prices": {"NGN": 20000},
+                    },
+                )
+
+            # Commit the allowance before generating a reply so parallel requests
+            # cannot both use the same free test.
+            usage.free_test_used = True
+            db.commit()
 
     history = (
         db.query(SupportMessage)
