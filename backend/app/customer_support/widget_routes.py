@@ -140,7 +140,7 @@ def get_widget_settings(
         db.commit()
         db.refresh(config)
 
-    api_base = "https://aloko.onrender.com"
+    api_base = "https://aloko-1.onrender.com"
     embed_code = (
         f'<script src="{api_base}/customer-support/widget.js" '
         f'data-widget-id="{config.public_id}" defer></script>'
