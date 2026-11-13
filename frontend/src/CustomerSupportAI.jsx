@@ -191,6 +191,7 @@ export default function CustomerSupportAI({ onBack }) {
 
   async function handleUploadKnowledgeImport(event) {
     event.preventDefault();
+    const uploadForm = event.currentTarget;
 
     if (!workspaceId || !importFile) {
       setError("Choose a document before uploading.");
@@ -205,7 +206,7 @@ export default function CustomerSupportAI({ onBack }) {
       const result = await uploadSupportKnowledgeImport(workspaceId, importFile);
 
       setImportFile(null);
-      event.currentTarget.reset();
+      uploadForm.reset();
 
       const refreshed = await getSupportKnowledgeImportDrafts(workspaceId);
       setImportDrafts(refreshed.drafts || []);
