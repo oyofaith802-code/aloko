@@ -114,3 +114,23 @@ class SupportWidgetConfig(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+class SupportKnowledgeImportDraft(Base):
+    __tablename__ = "support_knowledge_import_drafts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    workspace_id = Column(
+        Integer,
+        ForeignKey("support_workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    import_batch_id = Column(String(36), nullable=False, index=True)
+    source_filename = Column(String(255), nullable=False)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    category = Column(String(100), nullable=True)
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)

@@ -2296,6 +2296,50 @@ export function deleteSupportKnowledge(workspaceId, knowledgeId) {
   );
 }
 
+export function uploadSupportKnowledgeImport(workspaceId, file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return customerSupportRequest(
+    `/customer-support/workspaces/${Number(workspaceId)}/knowledge-imports`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+}
+
+export function getSupportKnowledgeImportDrafts(workspaceId) {
+  return customerSupportRequest(
+    `/customer-support/workspaces/${Number(workspaceId)}/knowledge-imports`
+  );
+}
+
+export function updateSupportKnowledgeImportDraft(workspaceId, draftId, payload) {
+  return customerSupportRequest(
+    `/customer-support/workspaces/${Number(workspaceId)}/knowledge-imports/${Number(draftId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export function approveSupportKnowledgeImportDraft(workspaceId, draftId) {
+  return customerSupportRequest(
+    `/customer-support/workspaces/${Number(workspaceId)}/knowledge-imports/${Number(draftId)}/approve`,
+    { method: "POST" }
+  );
+}
+
+export function rejectSupportKnowledgeImportDraft(workspaceId, draftId) {
+  return customerSupportRequest(
+    `/customer-support/workspaces/${Number(workspaceId)}/knowledge-imports/${Number(draftId)}/reject`,
+    { method: "POST" }
+  );
+}
+
 export function testSupportChat(workspaceId, payload) {
   return customerSupportRequest(
     `/customer-support/workspaces/${Number(workspaceId)}/test-chat`,

@@ -46,6 +46,7 @@ from app.customer_support.models import (
     SupportKnowledgeItem,
     SupportConversation,
     SupportMessage,
+    SupportKnowledgeImportDraft,
 )
 
 # Subscription billing models must load before create_all.

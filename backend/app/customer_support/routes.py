@@ -1,7 +1,12 @@
 from datetime import datetime, timezone
+import csv
+import io
+import re
+import uuid
+from pathlib import Path
 from sqlalchemy.exc import IntegrityError
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -13,6 +18,7 @@ from app.customer_support.models import (
     SupportKnowledgeItem,
     SupportConversation,
     SupportMessage,
+    SupportKnowledgeImportDraft,
 )
 from app.customer_support.agent import generate_support_reply
 from app.customer_support.demo import is_demo_workspace
@@ -521,3 +527,398 @@ def request_handoff(
         "status": conversation.status,
         "message": "Handoff recorded. A human agent must still respond manually.",
     }
+
+
+# ------------------------------------------------------------
+# AI KNOWLEDGE IMPORT
+# Extracted entries remain drafts until explicitly approved.
+# ------------------------------------------------------------
+
+MAX_KNOWLEDGE_IMPORT_BYTES = 8 * 1024 * 1024
+MAX_KNOWLEDGE_IMPORT_DRAFTS = 80
+ALLOWED_KNOWLEDGE_IMPORT_EXTENSIONS = {
+    ".pdf", ".docx", ".txt", ".csv", ".xlsx"
+}
+
+
+def _knowledge_category(text: str) -> str:
+    value = text.lower()
+
+    rules = [
+        ("pricing", ("price", "pricing", "cost", "?", "$", "naira", "discount")),
+        ("products", ("product", "model", "specification", "features", "stock")),
+        ("delivery", ("delivery", "deliver", "delivered", "shipping", "shipment", "dispatch", "pickup", "tracking")),
+        ("returns", ("return", "refund", "exchange", "replacement")),
+        ("policies", ("policy", "terms", "privacy", "warranty")),
+        ("faqs", ("faq", "frequently asked", "question", "answer")),
+    ]
+
+    for category, keywords in rules:
+        if any(keyword in value for keyword in keywords):
+            return category
+
+    return "general"
+
+
+def _make_import_entries(filename: str, raw: bytes):
+    extension = Path(filename).suffix.lower()
+    entries = []
+
+    if extension == ".pdf":
+        from pypdf import PdfReader
+
+        reader = PdfReader(io.BytesIO(raw))
+
+        if len(reader.pages) > 100:
+            raise HTTPException(
+                status_code=413,
+                detail="PDF imports are limited to 100 pages.",
+            )
+
+        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+
+    elif extension == ".docx":
+        from docx import Document
+
+        document = Document(io.BytesIO(raw))
+        parts = [paragraph.text for paragraph in document.paragraphs]
+
+        for table in document.tables:
+            for row in table.rows:
+                parts.append(" | ".join(cell.text.strip() for cell in row.cells))
+
+        text = "\n".join(parts)
+
+    elif extension == ".txt":
+        try:
+            text = raw.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            text = raw.decode("latin-1")
+
+    elif extension == ".csv":
+        decoded = raw.decode("utf-8-sig")
+        reader = csv.DictReader(io.StringIO(decoded))
+
+        for index, row in enumerate(reader, start=1):
+            content = "\n".join(
+                f"{str(key).strip()}: {str(value).strip()}"
+                for key, value in row.items()
+                if key and value is not None and str(value).strip()
+            )
+
+            if content:
+                entries.append({
+                    "title": f"Imported record {index}",
+                    "content": content[:20000],
+                    "category": _knowledge_category(content),
+                })
+
+            if len(entries) >= MAX_KNOWLEDGE_IMPORT_DRAFTS:
+                break
+
+        return entries
+
+    elif extension == ".xlsx":
+        import pandas as pd
+
+        workbook = pd.ExcelFile(io.BytesIO(raw))
+
+        for sheet_name in workbook.sheet_names[:10]:
+            frame = pd.read_excel(
+                workbook,
+                sheet_name=sheet_name,
+            ).fillna("")
+
+            for index, row in frame.head(500).iterrows():
+                content = "\n".join(
+                    f"{str(key).strip()}: {str(value).strip()}"
+                    for key, value in row.items()
+                    if str(value).strip()
+                )
+
+                if content:
+                    entries.append({
+                        "title": f"{sheet_name[:80]} ? record {index + 1}",
+                        "content": content[:20000],
+                        "category": _knowledge_category(content),
+                    })
+
+                if len(entries) >= MAX_KNOWLEDGE_IMPORT_DRAFTS:
+                    return entries
+
+        return entries
+
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported document type.",
+        )
+
+    sections = [
+        part.strip()
+        for part in re.split(r"\n\s*\n+", text)
+        if part.strip()
+    ]
+
+    if not sections and text.strip():
+        sections = [text.strip()]
+
+    for index, section in enumerate(
+        sections[:MAX_KNOWLEDGE_IMPORT_DRAFTS],
+        start=1,
+    ):
+        section = section[:20000]
+        first_line = next(
+            (line.strip() for line in section.splitlines() if line.strip()),
+            "",
+        )
+
+        entries.append({
+            "title": first_line[:255] or f"Imported information {index}",
+            "content": section,
+            "category": _knowledge_category(section),
+        })
+
+    return entries
+
+
+class KnowledgeImportReview(BaseModel):
+    title: str = Field(..., min_length=1, max_length=255)
+    content: str = Field(..., min_length=1, max_length=20000)
+    category: str | None = Field(default="general", max_length=100)
+
+
+@router.post("/workspaces/{workspace_id}/knowledge-imports")
+async def upload_knowledge_import(
+    workspace_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    workspace = get_owned_workspace(workspace_id, user, db)
+
+    filename = Path(file.filename or "").name
+
+    if Path(filename).suffix.lower() not in ALLOWED_KNOWLEDGE_IMPORT_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="Upload a PDF, DOCX, TXT, CSV, or XLSX file.",
+        )
+
+    raw = await file.read(MAX_KNOWLEDGE_IMPORT_BYTES + 1)
+    await file.close()
+
+    if not raw:
+        raise HTTPException(status_code=400, detail="The uploaded file is empty.")
+
+    if len(raw) > MAX_KNOWLEDGE_IMPORT_BYTES:
+        raise HTTPException(status_code=413, detail="Maximum upload size is 8 MB.")
+
+    try:
+        entries = _make_import_entries(filename, raw)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="The document could not be read. Check that it is a valid supported file.",
+        )
+
+    if not entries:
+        raise HTTPException(
+            status_code=422,
+            detail="No readable information was found. Scanned PDFs require OCR.",
+        )
+
+    batch_id = str(uuid.uuid4())
+    drafts = []
+
+    for entry in entries:
+        draft = SupportKnowledgeImportDraft(
+            workspace_id=workspace.id,
+            import_batch_id=batch_id,
+            source_filename=filename[:255],
+            title=entry["title"][:255],
+            content=entry["content"][:20000],
+            category=entry["category"],
+            status="pending",
+        )
+        db.add(draft)
+        drafts.append(draft)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to save imported drafts.",
+        )
+
+    for draft in drafts:
+        db.refresh(draft)
+
+    return {
+        "success": True,
+        "batch_id": batch_id,
+        "filename": filename,
+        "draft_count": len(drafts),
+        "message": "Entries extracted. Review and approve them before they enter your live knowledge base.",
+        "drafts": [
+            {
+                "id": item.id,
+                "title": item.title,
+                "content": item.content,
+                "category": item.category,
+                "status": item.status,
+                "source_filename": item.source_filename,
+            }
+            for item in drafts
+        ],
+    }
+
+
+@router.get("/workspaces/{workspace_id}/knowledge-imports")
+def list_knowledge_import_drafts(
+    workspace_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    workspace = get_owned_workspace(workspace_id, user, db)
+
+    drafts = (
+        db.query(SupportKnowledgeImportDraft)
+        .filter(SupportKnowledgeImportDraft.workspace_id == workspace.id)
+        .order_by(
+            SupportKnowledgeImportDraft.created_at.desc(),
+            SupportKnowledgeImportDraft.id.desc(),
+        )
+        .limit(500)
+        .all()
+    )
+
+    return {
+        "success": True,
+        "drafts": [
+            {
+                "id": item.id,
+                "title": item.title,
+                "content": item.content,
+                "category": item.category,
+                "status": item.status,
+                "source_filename": item.source_filename,
+                "created_at": item.created_at,
+            }
+            for item in drafts
+        ],
+    }
+
+
+@router.patch("/workspaces/{workspace_id}/knowledge-imports/{draft_id}")
+def update_knowledge_import_draft(
+    workspace_id: int,
+    draft_id: int,
+    data: KnowledgeImportReview,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    workspace = get_owned_workspace(workspace_id, user, db)
+
+    draft = (
+        db.query(SupportKnowledgeImportDraft)
+        .filter(
+            SupportKnowledgeImportDraft.id == draft_id,
+            SupportKnowledgeImportDraft.workspace_id == workspace.id,
+            SupportKnowledgeImportDraft.status == "pending",
+        )
+        .first()
+    )
+
+    if not draft:
+        raise HTTPException(status_code=404, detail="Pending import draft not found.")
+
+    draft.title = data.title.strip()
+    draft.content = data.content.strip()
+    draft.category = (data.category or "general").strip() or "general"
+
+    if not draft.title or not draft.content:
+        raise HTTPException(status_code=422, detail="Title and content cannot be empty.")
+
+    db.commit()
+
+    return {"success": True, "message": "Draft updated."}
+
+
+@router.post("/workspaces/{workspace_id}/knowledge-imports/{draft_id}/approve")
+def approve_knowledge_import_draft(
+    workspace_id: int,
+    draft_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    workspace = get_owned_workspace(workspace_id, user, db)
+
+    draft = (
+        db.query(SupportKnowledgeImportDraft)
+        .filter(
+            SupportKnowledgeImportDraft.id == draft_id,
+            SupportKnowledgeImportDraft.workspace_id == workspace.id,
+            SupportKnowledgeImportDraft.status == "pending",
+        )
+        .with_for_update()
+        .first()
+    )
+
+    if not draft:
+        raise HTTPException(status_code=404, detail="Pending import draft not found.")
+
+    live_item = SupportKnowledgeItem(
+        workspace_id=workspace.id,
+        title=draft.title,
+        content=draft.content,
+        category=draft.category,
+        is_active=True,
+    )
+
+    db.add(live_item)
+    draft.status = "approved"
+    draft.reviewed_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(live_item)
+
+    return {
+        "success": True,
+        "message": "Draft approved and added to live knowledge.",
+        "knowledge_id": live_item.id,
+    }
+
+
+@router.post("/workspaces/{workspace_id}/knowledge-imports/{draft_id}/reject")
+def reject_knowledge_import_draft(
+    workspace_id: int,
+    draft_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    workspace = get_owned_workspace(workspace_id, user, db)
+
+    draft = (
+        db.query(SupportKnowledgeImportDraft)
+        .filter(
+            SupportKnowledgeImportDraft.id == draft_id,
+            SupportKnowledgeImportDraft.workspace_id == workspace.id,
+            SupportKnowledgeImportDraft.status == "pending",
+        )
+        .first()
+    )
+
+    if not draft:
+        raise HTTPException(status_code=404, detail="Pending import draft not found.")
+
+    draft.status = "rejected"
+    draft.reviewed_at = datetime.now(timezone.utc)
+
+    db.commit()
+
+    return {"success": True, "message": "Draft rejected."}

@@ -1,6 +1,11 @@
 ﻿import React, { useCallback, useEffect, useState } from "react";
 import {
   addSupportKnowledge,
+  uploadSupportKnowledgeImport,
+  getSupportKnowledgeImportDrafts,
+  updateSupportKnowledgeImportDraft,
+  approveSupportKnowledgeImportDraft,
+  rejectSupportKnowledgeImportDraft,
   createSupportWorkspace,
   deleteSupportKnowledge,
   getSupportKnowledge,
@@ -43,6 +48,10 @@ export default function CustomerSupportAI({ onBack }) {
   });
   const [domainInput, setDomainInput] = useState("");
   const [widgetLoading, setWidgetLoading] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importDrafts, setImportDrafts] = useState([]);
+  const [importLoading, setImportLoading] = useState(false);
+  const [savingDraftId, setSavingDraftId] = useState(null);
 
   const selectedWorkspace = workspaces.find((w) => String(w.id) === String(workspaceId));
 
@@ -133,6 +142,30 @@ export default function CustomerSupportAI({ onBack }) {
     }
   }, [workspaceId, loadKnowledge]);
 
+  useEffect(() => {
+    let active = true;
+
+    async function loadDrafts() {
+      if (!workspaceId) {
+        setImportDrafts([]);
+        return;
+      }
+
+      try {
+        const result = await getSupportKnowledgeImportDrafts(workspaceId);
+        if (active) setImportDrafts(result.drafts || []);
+      } catch (err) {
+        if (active) setError(err.message || "Unable to load imported drafts.");
+      }
+    }
+
+    loadDrafts();
+
+    return () => {
+      active = false;
+    };
+  }, [workspaceId]);
+
   async function handleCreateWorkspace(event) {
     event.preventDefault();
     setLoading(true);
@@ -153,6 +186,105 @@ export default function CustomerSupportAI({ onBack }) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleUploadKnowledgeImport(event) {
+    event.preventDefault();
+
+    if (!workspaceId || !importFile) {
+      setError("Choose a document before uploading.");
+      return;
+    }
+
+    setImportLoading(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const result = await uploadSupportKnowledgeImport(workspaceId, importFile);
+
+      setImportFile(null);
+      event.currentTarget.reset();
+
+      const refreshed = await getSupportKnowledgeImportDrafts(workspaceId);
+      setImportDrafts(refreshed.drafts || []);
+
+      setNotice(
+        `${result.draft_count} entries extracted from ${result.filename}. Review them below before approval.`
+      );
+    } catch (err) {
+      setError(err.message || "Document import failed.");
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
+  function updateDraftField(draftId, field, value) {
+    setImportDrafts((items) =>
+      items.map((item) =>
+        item.id === draftId ? { ...item, [field]: value } : item
+      )
+    );
+  }
+
+  async function handleSaveImportDraft(draft) {
+    setSavingDraftId(draft.id);
+    setError("");
+    setNotice("");
+
+    try {
+      await updateSupportKnowledgeImportDraft(workspaceId, draft.id, {
+        title: draft.title,
+        content: draft.content,
+        category: draft.category || "general",
+      });
+
+      setNotice("Draft changes saved.");
+    } catch (err) {
+      setError(err.message || "Unable to save draft.");
+    } finally {
+      setSavingDraftId(null);
+    }
+  }
+
+  async function handleApproveImportDraft(draftId) {
+    setSavingDraftId(draftId);
+    setError("");
+    setNotice("");
+
+    try {
+      await approveSupportKnowledgeImportDraft(workspaceId, draftId);
+
+      const [draftResult] = await Promise.all([
+        getSupportKnowledgeImportDrafts(workspaceId),
+        loadKnowledge(workspaceId),
+      ]);
+
+      setImportDrafts(draftResult.drafts || []);
+      setNotice("Draft approved and added to the live knowledge base.");
+    } catch (err) {
+      setError(err.message || "Unable to approve draft.");
+    } finally {
+      setSavingDraftId(null);
+    }
+  }
+
+  async function handleRejectImportDraft(draftId) {
+    setSavingDraftId(draftId);
+    setError("");
+    setNotice("");
+
+    try {
+      await rejectSupportKnowledgeImportDraft(workspaceId, draftId);
+
+      const result = await getSupportKnowledgeImportDrafts(workspaceId);
+      setImportDrafts(result.drafts || []);
+      setNotice("Draft rejected. It was not added to live knowledge.");
+    } catch (err) {
+      setError(err.message || "Unable to reject draft.");
+    } finally {
+      setSavingDraftId(null);
     }
   }
 
@@ -359,6 +491,135 @@ export default function CustomerSupportAI({ onBack }) {
           <section style={styles.panel}>
             <h2 style={{ marginTop: 0 }}>Knowledge base</h2>
             <p>Add accurate information that the AI can use when responding to customer questions.</p>
+            <div style={{ border: "1px solid #d1d5db", borderRadius: 12, padding: 16, marginBottom: 22 }}>
+              <h3 style={{ marginTop: 0 }}>Import company documents</h3>
+              <p>
+                Upload a document to extract products, pricing, FAQs, delivery
+                information and company policies. Every extracted entry must
+                be reviewed before it becomes available to your AI assistant.
+              </p>
+
+              <form onSubmit={handleUploadKnowledgeImport}>
+                <label>
+                  Choose document (PDF, DOCX, TXT, CSV or XLSX)
+                  <input
+                    style={styles.field}
+                    type="file"
+                    accept=".pdf,.docx,.txt,.csv,.xlsx"
+                    required
+                    disabled={importLoading || !workspaceId}
+                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+                <p style={{ fontSize: 13, opacity: 0.75 }}>
+                  Maximum file size: 8 MB. Scanned PDFs are not supported yet.
+                </p>
+                <button
+                  style={styles.button}
+                  type="submit"
+                  disabled={importLoading || !importFile || !workspaceId}
+                >
+                  {importLoading ? "Extracting document..." : "Upload and extract"}
+                </button>
+              </form>
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <h3>Review imported knowledge ({importDrafts.filter((d) => d.status === "pending").length} pending)</h3>
+
+              {importDrafts.length === 0 && (
+                <p>No imported documents yet. Upload a document to begin.</p>
+              )}
+
+              {importDrafts.map((draft) => (
+                <article
+                  key={draft.id}
+                  style={{
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 12,
+                    padding: 16,
+                    marginBottom: 12,
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                    <strong>{draft.source_filename}</strong>
+                    <span style={{ fontSize: 13, fontWeight: 650 }}>
+                      {draft.status.toUpperCase()}
+                    </span>
+                  </div>
+
+                  {draft.status === "pending" ? (
+                    <>
+                      <label>
+                        Entry title
+                        <input
+                          style={styles.field}
+                          maxLength={255}
+                          value={draft.title}
+                          onChange={(e) => updateDraftField(draft.id, "title", e.target.value)}
+                        />
+                      </label>
+
+                      <label>
+                        Category
+                        <input
+                          style={styles.field}
+                          maxLength={100}
+                          value={draft.category || "general"}
+                          onChange={(e) => updateDraftField(draft.id, "category", e.target.value)}
+                        />
+                      </label>
+
+                      <label>
+                        Extracted information
+                        <textarea
+                          style={styles.field}
+                          rows={5}
+                          maxLength={20000}
+                          value={draft.content}
+                          onChange={(e) => updateDraftField(draft.id, "content", e.target.value)}
+                        />
+                      </label>
+
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          style={styles.secondary}
+                          disabled={savingDraftId === draft.id || loading}
+                          onClick={() => handleSaveImportDraft(draft)}
+                        >
+                          Save edits
+                        </button>
+
+                        <button
+                          type="button"
+                          style={styles.button}
+                          disabled={savingDraftId === draft.id || loading}
+                          onClick={() => handleApproveImportDraft(draft.id)}
+                        >
+                          Approve
+                        </button>
+
+                        <button
+                          type="button"
+                          style={{ ...styles.secondary, borderColor: "#dc2626", color: "#dc2626" }}
+                          disabled={savingDraftId === draft.id || loading}
+                          onClick={() => handleRejectImportDraft(draft.id)}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p><strong>{draft.title}</strong></p>
+                      <p style={{ whiteSpace: "pre-wrap" }}>{draft.content}</p>
+                    </>
+                  )}
+                </article>
+              ))}
+            </div>
+
             <form onSubmit={handleAddKnowledge}>
               <label>Entry title
                 <input style={styles.field} required maxLength={200} value={knowledgeForm.title} onChange={(e) => setKnowledgeForm({ ...knowledgeForm, title: e.target.value })} />
