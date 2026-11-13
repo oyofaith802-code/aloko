@@ -541,16 +541,19 @@ ALLOWED_KNOWLEDGE_IMPORT_EXTENSIONS = {
 }
 
 
+
 def _knowledge_category(text: str) -> str:
     value = text.lower()
 
+    # FAQs must be checked before pricing. A question mark alone
+    # does not mean that an entry contains pricing information.
     rules = [
-        ("pricing", ("price", "pricing", "cost", "?", "$", "naira", "discount")),
+        ("faqs", ("faq", "frequently asked", "question:", "answer:")),
         ("products", ("product", "model", "specification", "features", "stock")),
         ("delivery", ("delivery", "deliver", "delivered", "shipping", "shipment", "dispatch", "pickup", "tracking")),
         ("returns", ("return", "refund", "exchange", "replacement")),
         ("policies", ("policy", "terms", "privacy", "warranty")),
-        ("faqs", ("faq", "frequently asked", "question", "answer")),
+        ("pricing", ("price", "pricing", "cost", "amount", "naira", "discount")),
     ]
 
     for category, keywords in rules:
@@ -558,6 +561,218 @@ def _knowledge_category(text: str) -> str:
             return category
 
     return "general"
+
+
+def _is_import_heading(line: str) -> bool:
+    value = line.strip().lstrip("#").strip()
+
+    if not value or len(value) > 100 or value.endswith("?"):
+        return False
+
+    normalized = re.sub(r"\s+", " ", value.lower()).strip(" :.-")
+
+    known_headings = {
+        "company overview",
+        "about us",
+        "products",
+        "products and prices",
+        "product catalogue",
+        "product catalog",
+        "pricing",
+        "pricing information",
+        "delivery",
+        "delivery policy",
+        "shipping policy",
+        "returns",
+        "return policy",
+        "returns and exchanges",
+        "refund policy",
+        "payment",
+        "payment policy",
+        "frequently asked questions",
+        "frequently asked questions (faqs)",
+        "faqs",
+        "customer support guidance",
+        "customer support",
+        "support information",
+        "business information",
+        "contact information",
+        "terms and conditions",
+        "privacy policy",
+        "warranty policy",
+    }
+
+    if normalized in known_headings:
+        return True
+
+    # Also recognise numbered headings such as:
+    # 1. Company Overview
+    # 2. Products and Prices
+    # 3. Delivery Policy
+    numbered = re.match(
+        r"^\d+(?:\.\d+)*[.)]?\s+(.+)$",
+        value,
+    )
+
+    if numbered:
+        heading_text = re.sub(
+            r"\\s+", " ", numbered.group(1).lower()
+        ).strip(" :.-")
+        return heading_text in known_headings
+
+    return False
+
+
+def _split_import_sections(text: str):
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    lines = normalized.split("\n")
+
+    heading_indexes = [
+        index
+        for index, line in enumerate(lines)
+        if _is_import_heading(line)
+    ]
+
+    if heading_indexes:
+        sections = []
+        current = []
+
+        for line in lines:
+            if _is_import_heading(line) and current:
+                content = "\n".join(current).strip()
+                if content:
+                    sections.append(content)
+                current = [line.strip()]
+            else:
+                current.append(line)
+
+        content = "\n".join(current).strip()
+        if content:
+            sections.append(content)
+
+        return sections
+
+    # Preserve the previous blank-line behaviour for documents
+    # that do not contain recognisable headings.
+    return [
+        part.strip()
+        for part in re.split(r"\n\s*\n+", normalized)
+        if part.strip()
+    ]
+
+
+def _split_product_entries(section: str):
+    lines = section.splitlines()
+
+    if lines and _is_import_heading(lines[0]):
+        lines = lines[1:]
+
+    # A product name is recognised when the next meaningful line
+    # contains a price or product-detail label.
+    detail_pattern = re.compile(
+        r"^\s*(price|cost|amount|description|features|"
+        r"specifications?|stock|availability|colour|color|size)\s*:",
+        re.IGNORECASE,
+    )
+
+    product_indexes = []
+
+    for index, line in enumerate(lines):
+        candidate = line.strip()
+
+        if (
+            not candidate
+            or ":" in candidate
+            or candidate.startswith(("-", "*", "?"))
+            or _is_import_heading(candidate)
+        ):
+            continue
+
+        next_line = next(
+            (
+                item.strip()
+                for item in lines[index + 1:]
+                if item.strip()
+            ),
+            "",
+        )
+
+        if detail_pattern.match(next_line):
+            product_indexes.append(index)
+
+    if not product_indexes:
+        return []
+
+    products = []
+
+    # Preserve introductory information before the first product.
+    preamble = "\\n".join(
+        lines[:product_indexes[0]]
+    ).strip()
+
+    if preamble:
+        products.append({
+            "title": "Products and Prices - Additional Information",
+            "content": preamble[:20000],
+            "category": "products",
+        })
+
+    for position, product_index in enumerate(product_indexes):
+        next_index = (
+            product_indexes[position + 1]
+            if position + 1 < len(product_indexes)
+            else len(lines)
+        )
+
+        content = "\n".join(
+            lines[product_index:next_index]
+        ).strip()
+
+        if content:
+            title = lines[product_index].strip()
+            products.append({
+                "title": title[:255],
+                "content": content[:20000],
+                "category": "products",
+            })
+
+    return products
+
+
+def _split_faq_entries(section: str):
+    lines = section.splitlines()
+
+    question_indexes = [
+        index
+        for index, line in enumerate(lines)
+        if line.strip().endswith("?")
+    ]
+
+    if not question_indexes:
+        return []
+
+    entries = []
+
+    for position, question_index in enumerate(question_indexes):
+        next_index = (
+            question_indexes[position + 1]
+            if position + 1 < len(question_indexes)
+            else len(lines)
+        )
+
+        content = "\n".join(
+            lines[question_index:next_index]
+        ).strip()
+
+        if content:
+            question = lines[question_index].strip()
+            entries.append({
+                "title": question[:255],
+                "content": content[:20000],
+                "category": "faqs",
+            })
+
+    return entries
 
 
 def _make_import_entries(filename: str, raw: bytes):
@@ -575,17 +790,45 @@ def _make_import_entries(filename: str, raw: bytes):
                 detail="PDF imports are limited to 100 pages.",
             )
 
-        text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        text = "\n".join(
+            page.extract_text() or ""
+            for page in reader.pages
+        )
 
     elif extension == ".docx":
         from docx import Document
 
         document = Document(io.BytesIO(raw))
-        parts = [paragraph.text for paragraph in document.paragraphs]
+        parts = []
 
+        for paragraph in document.paragraphs:
+            paragraph_text = paragraph.text.strip()
+
+            if not paragraph_text:
+                continue
+
+            style_name = (
+                paragraph.style.name.lower()
+                if paragraph.style
+                else ""
+            )
+
+            if style_name.startswith("heading"):
+                parts.append(f"\n## {paragraph_text}\n")
+            else:
+                parts.append(paragraph_text)
+
+        # Preserve table content in the extracted document.
         for table in document.tables:
             for row in table.rows:
-                parts.append(" | ".join(cell.text.strip() for cell in row.cells))
+                cells = [
+                    cell.text.strip()
+                    for cell in row.cells
+                    if cell.text.strip()
+                ]
+
+                if cells:
+                    parts.append(" | ".join(cells))
 
         text = "\n".join(parts)
 
@@ -638,7 +881,7 @@ def _make_import_entries(filename: str, raw: bytes):
 
                 if content:
                     entries.append({
-                        "title": f"{sheet_name[:80]} ? record {index + 1}",
+                        "title": f"{sheet_name[:80]} - record {index + 1}",
                         "content": content[:20000],
                         "category": _knowledge_category(content),
                     })
@@ -654,24 +897,64 @@ def _make_import_entries(filename: str, raw: bytes):
             detail="Unsupported document type.",
         )
 
-    sections = [
-        part.strip()
-        for part in re.split(r"\n\s*\n+", text)
-        if part.strip()
-    ]
-
-    if not sections and text.strip():
-        sections = [text.strip()]
+    sections = _split_import_sections(text)
 
     for index, section in enumerate(
-        sections[:MAX_KNOWLEDGE_IMPORT_DRAFTS],
+        sections,
         start=1,
     ):
-        section = section[:20000]
+        if len(entries) >= MAX_KNOWLEDGE_IMPORT_DRAFTS:
+            break
+
         first_line = next(
-            (line.strip() for line in section.splitlines() if line.strip()),
+            (
+                line.strip().lstrip("#").strip()
+                for line in section.splitlines()
+                if line.strip()
+            ),
             "",
         )
+
+        normalized_heading = re.sub(
+            r"^\d+(?:\.\d+)*[.)]?\s*",
+            "",
+            first_line,
+        ).strip().lower()
+
+        # Split product lists into individual product records.
+        if normalized_heading in {
+            "products",
+            "products and prices",
+            "product catalogue",
+            "product catalog",
+        }:
+            product_entries = _split_product_entries(section)
+
+            if product_entries:
+                entries.extend(
+                    product_entries[
+                        :MAX_KNOWLEDGE_IMPORT_DRAFTS - len(entries)
+                    ]
+                )
+                continue
+
+        # Keep every FAQ question with its corresponding answer.
+        if normalized_heading in {
+            "frequently asked questions",
+            "frequently asked questions (faqs)",
+            "faqs",
+        }:
+            faq_entries = _split_faq_entries(section)
+
+            if faq_entries:
+                entries.extend(
+                    faq_entries[
+                        :MAX_KNOWLEDGE_IMPORT_DRAFTS - len(entries)
+                    ]
+                )
+                continue
+
+        section = section[:20000]
 
         entries.append({
             "title": first_line[:255] or f"Imported information {index}",
